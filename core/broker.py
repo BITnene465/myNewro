@@ -7,10 +7,7 @@ import logging
 import base64
 from typing import Any, Dict, Callable, Coroutine, Set, Optional
 
-from services.stt import STTService
-from services.llm import LLMService
-from services.tts import TTSService
-from services.lips import LipSyncService
+from services.base import BaseService
 from .websocket.protocol import MessageType, create_message, parse_message
 
 logger = logging.getLogger(__name__)
@@ -25,10 +22,10 @@ class ServiceBroker:
     服务协调器，管理AI服务并将它们连接到WebSocket通信。
     """
     def __init__(self,
-                 stt_service: STTService,
-                 llm_service: LLMService,
-                 tts_service: TTSService,
-                 lipsync_service: LipSyncService):
+                 stt_service: BaseService,
+                 llm_service: BaseService,
+                 tts_service: BaseService,
+                 lipsync_service: BaseService):
         # 使用字典存储所有服务
         self.services = {
             'stt': stt_service,

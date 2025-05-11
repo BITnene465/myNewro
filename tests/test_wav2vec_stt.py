@@ -3,17 +3,17 @@ import sys
 import asyncio
 import time
 from pathlib import Path
+import torch
 
 # 添加项目根目录到Python路径
 sys.path.append(str(Path(__file__).parent.parent))
 
-from services.stt import STTService
-from config import settings
+from config.settings import PROJECT_ROOT
+from services.stt import Wav2vecService
 
 async def test_stt_service():
     """测试STT服务的语音识别功能"""
     audio_path = Path(__file__).parent / "test_data" / "exp2.wav"
-    # 如果data目录不存在，创建它
     os.makedirs(audio_path.parent, exist_ok=True)
     
     if not audio_path.exists():
@@ -33,7 +33,13 @@ async def test_stt_service():
     start_time = time.time()
     
     # 创建STT服务实例
-    stt_service = STTService(config=settings.STT_SERVICE)
+    STT_SERVICE_CONFIG = {
+        "model_name": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
+        "device": "cuda" if torch.cuda.is_available() else "cpu",
+        "local_models_path": PROJECT_ROOT / "models"   # 就是根目录下的 models 文件夹
+        }
+    
+    stt_service = Wav2vecService(config=STT_SERVICE_CONFIG)
     
     await stt_service.initialize()
     print(f"STT服务初始化完成，耗时: {time.time() - start_time:.2f} 秒")
@@ -52,14 +58,4 @@ async def test_stt_service():
     print("测试完成")
 
 if __name__ == "__main__":
-    try:
-        import torch
-        asyncio.run(test_stt_service())
-    except RuntimeError as e:
-        if "CUDA" in str(e):
-            print("\n错误: CUDA初始化失败。请确保您的系统支持CUDA并已正确安装驱动。")
-            print("您可以通过运行时自动判断使用CPU模式运行。")
-        else:
-            print(f"\n运行时错误: {e}")
-    except Exception as e:
-        print(f"\n发生错误: {e}")
+    asyncio.run(test_stt_service())

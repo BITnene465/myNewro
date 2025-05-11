@@ -6,10 +6,6 @@ import os
 from config import settings
 from core.websocket.server import WebSocketServer
 from core.broker import ServiceBroker
-from services.stt import STTService
-from services.llm import LLMService
-from services.tts import TTSService
-from services.lips import LipSyncService
 
 # 配置日志
 logging.basicConfig(level=settings.LOG_LEVEL, format=settings.LOG_FORMAT)
@@ -18,6 +14,44 @@ logger = logging.getLogger(__name__)
 # 全局变量，用于优雅关闭
 shutdown_event = asyncio.Event()
 
+def choose_services():
+    """根据settings.py 中的配置选择服务"""
+    if settings.STT_MODEL_TYPE == "whisper":
+        from services.stt import WhisperService
+        stt_service = WhisperService(service_name=settings.STT_SERVICE_NAME, config=settings.STT_SERVICE)
+    elif settings.STT_MODEL_TYPE == "wav2vec":
+        from services.stt import Wav2vecService
+        stt_service = Wav2vecService(service_name=settings.STT_SERVICE_NAME, config=settings.STT_SERVICE)
+    else:
+        raise ValueError(f"Unsupported STT service: {settings.STT_SERVICE}")
+    
+    if settings.TTS_MODEL_TYPE == "gpt_sovits":
+        from services.tts import GPTsovitsService
+        tts_service = GPTsovitsService(service_name=settings.TTS_SERVICE_NAME, config=settings.TTS_SERVICE)
+    elif settings.TTS_MODEL_TYPE == "fish_speech":
+        from services.tts import FishSpeechService
+        tts_service = FishSpeechService(service_name=settings.TTS_SERVICE_NAME, config=settings.TTS_SERVICE)
+    else:
+        raise ValueError(f"Unsupported TTS service: {settings.TTS_SERVICE}")
+    
+    if settings.LLM_MODEL_TYPE == "openai_like":
+        from services.llm import OpenaiService
+        llm_service = OpenaiService(service_name=settings.LLM_SERVICE_NAME, config=settings.LLM_SERVICE)
+    elif settings.LLM_MODEL_TYPE == "local":
+        from services.llm import LocalModelService
+        llm_service = LocalModelService(service_name=settings.LLM_SERVICE_NAME, config=settings.LLM_SERVICE)
+    elif settings.LLM_MODEL_TYPE == "ollama":
+        from services.llm import LlamaService
+        llm_service = LlamaService(service_name=settings.LLM_SERVICE_NAME, config=settings.LLM_SERVICE)
+    else:
+        raise ValueError(f"Unsupported LLM service: {settings.LLM_MODEL_TYPE}")
+    
+    from services.lips import LipSyncService
+    lipsync_service = LipSyncService(service_name=settings.LIPSYNC_SERVICE_NAME, config=settings.LIPSYNC_SERVICE)
+    
+    return stt_service, llm_service, tts_service, lipsync_service
+    
+
 async def main():
     """
     主异步函数，初始化并运行应用程序。
@@ -25,10 +59,7 @@ async def main():
     logger.info("Starting AI Virtual Anchor Backend...")
 
     # 1. 初始化服务
-    stt_service = STTService(config=settings.STT_SERVICE)
-    llm_service = LLMService(config=settings.LLM_SERVICE)
-    tts_service = TTSService(config=settings.TTS_SERVICE)
-    lipsync_service = LipSyncService(config=settings.LIPSYNC_SERVICE) 
+    stt_service, llm_service, tts_service, lipsync_service = choose_services()
 
     # 2. 初始化服务协调器 (Broker)
     broker = ServiceBroker(
@@ -97,8 +128,7 @@ def signal_handler(sig, frame):
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    
+    os.chdir(settings.PROJECT_ROOT)
     # 设置信号处理器
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)

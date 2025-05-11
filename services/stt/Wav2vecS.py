@@ -3,16 +3,14 @@ import tempfile
 import asyncio
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-
 import torch
 import torchaudio
 import numpy as np
-from scipy.io import wavfile
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor, AutoFeatureExtractor
 
-from .base import BaseService
+from ..base import BaseService
 
-class STTService(BaseService):
+class Wav2vecService(BaseService):
     """
     基于Hugging Face的Wav2Vec2模型
     """
@@ -124,7 +122,6 @@ class STTService(BaseService):
         try:
             # 获取当前运行的事件循环
             loop = asyncio.get_running_loop()
-            
             # 处理音频数据
             if isinstance(audio_data, bytes): # 如果是字节流
                 # 保存为临时文件

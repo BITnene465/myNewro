@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from services.llm import LLMService
+from services.llm import OpenaiService
 from config import settings
 
 async def test_llm_service():
@@ -18,7 +18,7 @@ async def test_llm_service():
     print("初始化DeepSeek LLM服务...")
     start_time = time.time()
     # 创建LLM服务实例
-    llm_service = LLMService(config=settings.LLM_SERVICE)
+    llm_service = OpenaiService(config=settings.LLM_SERVICE)
     
     try:
         await llm_service.initialize()

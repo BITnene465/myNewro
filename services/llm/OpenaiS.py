@@ -5,12 +5,11 @@ from typing import Dict, Any, List, Optional, Union, Iterator
 from pathlib import Path
 from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError
 
-from .base import BaseService
+from ..base import BaseService
 
-class LLMService(BaseService):
+class OpenaiService(BaseService):
     """
-    大型语言模型服务，使用OpenAI库封装DeepSeek API
-    DeepSeek API完全兼容OpenAI的接口格式
+    支持 Openai API 的 LLM 服务
     """
     
     def __init__(self, service_name: str = "llm", config: Dict[str, Any] = None):
@@ -44,7 +43,7 @@ class LLMService(BaseService):
         self.client = None
         self.system_prompt = self._load_system_prompt()
         
-        print(self.config)
+        # print(self.config)
         self.logger.info(f"LLM Service created with model: {self.config.get('model')}")
     
     def _load_system_prompt(self) -> str:

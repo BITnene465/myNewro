@@ -7,8 +7,8 @@ from pathlib import Path
 # 添加项目根目录到Python路径
 sys.path.append(str(Path(__file__).parent.parent))
 
-from services.tts import TTSService
-from config import settings
+from services.tts import GPTsovitsService
+from config.settings import PROJECT_ROOT
 
 async def test_tts_service():
     """测试GPTsoVITS TTS服务"""
@@ -21,7 +21,19 @@ async def test_tts_service():
     start_time = time.time()
     
     # 创建TTS服务实例
-    tts_service = TTSService(service_name="GPTsoVITS", config=settings.TTS_SERVICE)
+    TTS_SERVICE_CONFIG = {
+        "api_base_url": "http://localhost:9880",  # 确保GPTsoVITS服务正在运行
+        "speed": 1.0,
+        "audio_format": "wav",
+        "default_refer_wav_path": "/workspace/SoVITS_weights/ref_audio/dz.wav",  # 默认参考音频路径
+        "default_prompt_text": "大家好呀。今天是我第一次尝试在雨天直播呢，欢迎大家来到我的频道。",  
+        "default_prompt_language": "zh", 
+        "text_language": "zh",
+        "top_k": 20,
+        "top_p": 0.9,
+        "temperature": 0.8
+    }
+    tts_service = GPTsovitsService(service_name="GPTsoVITS", config=TTS_SERVICE_CONFIG)
     
     try:
         await tts_service.initialize()

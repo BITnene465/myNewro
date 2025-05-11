@@ -5,9 +5,9 @@ import base64
 from pathlib import Path
 from typing import Dict, Any, Union, List, Optional
 
-from .base import BaseService
+from ..base import BaseService
 
-class TTSService(BaseService):
+class GPTsovitsService(BaseService):
     """
     基于GPTsoVITS的文本转语音服务
     """
@@ -47,7 +47,7 @@ class TTSService(BaseService):
                 "cut_punc": None,                                 
             }
         super().__init__(service_name, config)
-        print(self.config)
+        # print(self.config)
         self.api_session = None
         self.logger.info(f"GPTsoVITS TTS Service created with config: {config}")
     
