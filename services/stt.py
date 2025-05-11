@@ -56,8 +56,8 @@ class STTService(BaseService):
         
         try:
             # 获取当前运行的事件循环
+            # 为什么要采用这种方式？因为模型加载相关函数使用huggingfac接口，只能同步运行，直接当作异步函数运行会阻塞主线程。所以采用多线程执行的方式（通过 run_in_executor() 让线程池调度相关的同步代码）
             loop = asyncio.get_running_loop()
-            # 加载模型和处理器
             model_load_result = await loop.run_in_executor(
                 None,
                 lambda: self._load_model_and_processor(local_models_path)
@@ -77,7 +77,7 @@ class STTService(BaseService):
         加载模型和处理器，如果本地存在则从本地加载，否则从Hugging Face下载
         Args:
             local_path: 本地模型存储路径
-        
+
         Returns:
             元组: (model, processor)
         """

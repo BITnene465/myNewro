@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from services.stt import STTService
+from config import settings
 
 async def test_stt_service():
     """测试STT服务的语音识别功能"""
@@ -32,11 +33,7 @@ async def test_stt_service():
     start_time = time.time()
     
     # 创建STT服务实例
-    stt_service = STTService(config={
-        "model_name": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
-        "device": "cuda" if torch.cuda.is_available() else "cpu",
-        "local_models_path": Path(__file__).parent.parent / "models"
-    })
+    stt_service = STTService(config=settings.STT_SERVICE)
     
     await stt_service.initialize()
     print(f"STT服务初始化完成，耗时: {time.time() - start_time:.2f} 秒")

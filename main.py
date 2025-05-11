@@ -25,10 +25,10 @@ async def main():
     logger.info("Starting AI Virtual Anchor Backend...")
 
     # 1. 初始化服务
-    stt_service = STTService(config=settings.STT_SERVICE_CONFIG)
-    llm_service = LLMService(config=settings.LLM_SERVICE_CONFIG)
-    tts_service = TTSService(config=settings.TTS_SERVICE_CONFIG)
-    lipsync_service = LipSyncService(config=settings.LIPSYNC_SERVICE_CONFIG) 
+    stt_service = STTService(config=settings.STT_SERVICE)
+    llm_service = LLMService(config=settings.LLM_SERVICE)
+    tts_service = TTSService(config=settings.TTS_SERVICE)
+    lipsync_service = LipSyncService(config=settings.LIPSYNC_SERVICE) 
 
     # 2. 初始化服务协调器 (Broker)
     broker = ServiceBroker(

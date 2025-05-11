@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from services.tts import TTSService
+from config import settings
 
 async def test_tts_service():
     """测试GPTsoVITS TTS服务"""
@@ -20,18 +21,7 @@ async def test_tts_service():
     start_time = time.time()
     
     # 创建TTS服务实例
-    tts_service = TTSService(service_name="GPTsoVITS", config={
-        "api_base_url": "http://localhost:9880",  # 确保GPTsoVITS服务正在运行
-        "speed": 1.0,
-        "audio_format": "wav",
-        "default_refer_wav_path": "/workspace/SoVITS_weights/ref_audio/nailong1.wav",  # 默认参考音频路径
-        "default_prompt_text": "你好，这里是我的频道，欢迎大家来和我聊天。",  
-        "default_prompt_language": "zh", 
-        "text_language": "zh",
-        "top_k": 20,
-        "top_p": 0.6,
-        "temperature": 0.6
-    })
+    tts_service = TTSService(service_name="GPTsoVITS", config=settings.TTS_SERVICE)
     
     try:
         await tts_service.initialize()

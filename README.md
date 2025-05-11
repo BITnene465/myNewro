@@ -72,7 +72,7 @@ newroBackend/
 
 ### 环境要求
 
-- Python 3.8+
+- Python 3.10
 - PyTorch 1.10+
 - CUDA 11.3+（推荐GPU加速）
 

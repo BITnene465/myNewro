@@ -127,9 +127,7 @@ class ServiceBroker:
                     logger.error("No audio_data_base64 in AUDIO_INPUT payload")
                     await self._send_error_response(websocket, "Missing audio_data_base64", request_id)
                     return
-
-                # Base64解码 (实际STT服务可能需要原始字节)
-                # 这里我们假设STT服务能处理base64或我们在这里解码
+                # 解码 base64 音频数据
                 try:
                     audio_bytes = base64.b64decode(audio_data_base64)
                 except Exception as e:
@@ -325,5 +323,5 @@ class ServiceBroker:
     async def _send_error_response(self, websocket: Any, error_message: str, request_id: Optional[str]):
         """向客户端发送错误消息。"""
         logger.error(f"Sending error to client (Request ID: {request_id}): {error_message}")
-        error_payload = {"message": error_message, "code": "INTERNAL_ERROR"} # 可定义更详细的错误码
+        error_payload = {"message": error_message, "code": "INTERNAL_ERROR"}
         await self._send_to_client(websocket, MessageType.ERROR, error_payload, request_id)
