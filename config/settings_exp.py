@@ -17,7 +17,7 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 STT_SERVICE = {
     "model_name": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
     "device": "cuda" if torch.cuda.is_available() else "cpu",
-    "local_models_path": Path(__file__).parent / "models"   # 就是根目录下的 models 文件夹
+    "local_models_path": Path(__file__).parent.parent / "models"   # 就是根目录下的 models 文件夹
     }
 
 TTS_SERVICE ={
@@ -34,7 +34,7 @@ TTS_SERVICE ={
     }
 
 LIPSYNC_SERVICE = {
-    "model_path": Path(__file__).parent / "models" / "xxx.pth"
+    "model_path": Path(__file__).parent.parent / "models" / "xxx.pth" 
 }
 
 LLM_SERVICE = {
