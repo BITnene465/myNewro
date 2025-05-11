@@ -1,4 +1,4 @@
-models
+models/*
 tests/test_data/*
 tests/test_output/*
 __pycache__
