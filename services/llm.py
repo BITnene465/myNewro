@@ -1,0 +1,229 @@
+import os
+import json
+import asyncio
+from typing import Dict, Any, List, Optional, Union, Iterator
+from pathlib import Path
+from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError
+
+from .base import BaseService
+
+class LLMService(BaseService):
+    """
+    大型语言模型服务，使用OpenAI库封装DeepSeek API
+    DeepSeek API完全兼容OpenAI的接口格式
+    """
+    
+    def __init__(self, service_name: str = "llm", config: Dict[str, Any] = None):
+        """
+        初始化LLM服务
+        
+        Args:
+            service_name: 服务名称
+            config: 配置字典，包含：
+                - api_key: API密钥
+                - api_base: API基础URL (DeepSeek或OpenAI)
+                - model: 模型名称
+                - system_prompt: 系统提示词
+                - system_prompt_file: 系统提示词文件路径（如果提供，将覆盖system_prompt）
+                - temperature: 温度参数，控制随机性
+                - max_tokens: 最大生成token数
+                - top_p: top-p采样参数
+                - stream: 是否使用流式响应
+        """
+        if config is None:
+            config = {
+                "api_key": os.environ.get("DEEPSEEK_API_KEY", ""),
+                "api_base_url": "https://api.deepseek.com/v1",
+                "model": "deepseek-chat",  # DeepSeek默认模型
+                "temperature": 0.7,
+                "max_tokens": 2000,
+                "top_p": 0.9,
+                "stream": False
+            }
+        super().__init__(service_name, config)
+        self.client = None
+        self.system_prompt = self._load_system_prompt()
+        
+        print(self.config)
+        self.logger.info(f"LLM Service created with model: {self.config.get('model')}")
+    
+    def _load_system_prompt(self) -> str:
+        """加载系统提示词"""
+        # 检查是否有提示词文件
+        sys_prompt = self.config.get("system_prompt")
+        if sys_prompt is not None:
+            return sys_prompt
+        
+        sys_prompt_file = self.config.get("system_prompt_file")
+        if sys_prompt_file and os.path.exists(sys_prompt_file):
+            with open(sys_prompt_file, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    
+        return "你是一个虚拟主播"
+    
+    async def initialize(self):
+        """
+        初始化LLM服务，创建OpenAI客户端
+        """
+        self.logger.info("Initializing LLM service...")
+        
+        try:
+            # 创建OpenAI客户端，配置为使用DeepSeek API
+            api_key = self.config.get("api_key")
+            api_base_url = self.config.get("api_base_url")
+            if not api_key:
+                self.logger.warning("No API key provided. API calls may fail.")
+            self.client = AsyncOpenAI(
+                api_key=api_key,
+                base_url=api_base_url
+            )
+            # 测试API连接
+            result = await self.test_connection()
+            if result:
+                self.logger.info("Successfully connected to LLM API.")
+                self._is_ready = True
+            else:
+                self.logger.error("Failed to connect to LLM API.")
+                raise ConnectionError("Could not connect to LLM API. Check your API key and URL.")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to initialize LLM service: {e}")
+            raise
+    
+    async def test_connection(self) -> bool:
+        """
+        测试API连接
+        
+        Returns:
+            bool: 连接是否成功
+        """
+        try:
+            # 使用OpenAI客户端的models.list方法测试连接
+            models = await self.client.models.list()
+            return True
+        except APIConnectionError as e:
+            self.logger.error(f"API connection error: {e}")
+            return False
+        except APIError as e:
+            self.logger.error(f"API error: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error testing API connection: {e}")
+            return False
+    
+    async def process(self, text: str, **kwargs) -> str:
+        """
+        处理用户文本并返回AI响应
+        
+        Args:
+            text: 用户输入文本
+            **kwargs: 额外参数，可覆盖默认配置
+
+        Returns:
+            str: AI生成的回复文本
+        """
+        if not self.is_ready():
+            self.logger.error("LLM service not initialized")
+            raise RuntimeError("LLM service not initialized")
+        
+        self.logger.info(f"Processing text with LLM: '{text[:50]}...'")
+        
+        try:
+            # 合并配置和请求特定参数
+            model = kwargs.get("model", self.config.get("model"))
+            temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
+            max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 2000))
+            top_p = kwargs.get("top_p", self.config.get("top_p", 0.9))
+            stream = kwargs.get("stream", self.config.get("stream", False))
+            # 构建消息
+            messages = []
+            # 添加系统提示词
+            if self.system_prompt:
+                messages.append({"role": "system", "content": self.system_prompt})
+            
+            # 添加用户消息
+            messages.append({"role": "user", "content": text})
+            
+            # 使用OpenAI客户端调用API
+            if stream:
+                return await self._process_stream(model, messages, temperature, max_tokens, top_p)
+            else:
+                return await self._process_normal(model, messages, temperature, max_tokens, top_p)
+                
+        except RateLimitError as e:
+            self.logger.error(f"Rate limit exceeded: {e}")
+            raise RuntimeError(f"API rate limit exceeded: {e}")
+        except APIError as e:
+            self.logger.error(f"API error: {e}")
+            raise RuntimeError(f"API error: {e}")
+        except Exception as e:
+            self.logger.error(f"Error calling LLM API: {e}")
+            raise
+    
+    async def _process_normal(self, model: str, messages: List[Dict[str, str]], 
+                             temperature: float, max_tokens: int, top_p: float) -> str:
+        """
+        处理普通（非流式）API请求
+        
+        Args:
+            model: 模型名称
+            messages: 消息列表
+            temperature: 温度参数
+            max_tokens: 最大生成令牌数
+            top_p: Top-p采样参数
+            
+        Returns:
+            str: AI生成的文本
+        """
+        response = await self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p
+        )
+        
+        content = response.choices[0].message.content
+        self.logger.info(f"Successfully got response from LLM API: '{content[:50]}...'")
+        return content
+    
+    async def _process_stream(self, model: str, messages: List[Dict[str, str]], 
+                             temperature: float, max_tokens: int, top_p: float) -> str:
+        """
+        处理流式API请求
+        
+        Args:
+            model: 模型名称
+            messages: 消息列表
+            temperature: 温度参数
+            max_tokens: 最大生成令牌数
+            top_p: Top-p采样参数
+            
+        Returns:
+            str: 完整的AI生成文本
+        """
+        response_stream = await self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            stream=True
+        )
+        
+        full_response = []
+        async for chunk in response_stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                content = chunk.choices[0].delta.content
+                full_response.append(content)
+        
+        final_response = "".join(full_response)
+        self.logger.info(f"Successfully completed stream from LLM API: '{final_response[:50]}...'")
+        return final_response
+    
+    async def shutdown(self):
+        """释放资源"""
+        self.logger.info("Shutting down LLM service")
+        # OpenAI客户端不需要特别的清理
+        self._is_ready = False
+        await super().shutdown()
