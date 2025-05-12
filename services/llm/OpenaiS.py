@@ -44,6 +44,7 @@ class OpenaiService(BaseService):
         super().__init__(service_name, config)
         self.client = None
         self.system_prompt = self._load_system_prompt()
+        self.history_messages = {}  # 根据 session_id 为key索引的历史消息
         
         # print(self.config)
         self.logger.info(f"LLM Service created with model: {self.config.get('model')}")
@@ -61,6 +62,26 @@ class OpenaiService(BaseService):
                 return f.read().strip()
     
         return "你是虚拟主播小田，是一个新人出道的虚拟up主。"
+    
+    def _get_history_messages(self, session_id: str, new_text=None) -> List[Dict[str, str]]:
+        """
+        Args:
+            session_id: 会话ID
+            new_text: 新的用户输入文本（可选）
+        Returns:
+            List[Dict[str, str]]: 历史消息列表
+        """
+        if session_id not in self.history_messages:
+            if self.system_prompt:
+                self.history_messages[session_id] = [{"role": "system", "content": self.system_prompt}]
+            else: 
+                self.history_messages[session_id] = []
+        if new_text is not None:
+            # 添加用户消息
+            self.history_messages[session_id].append({"role": "user", "content": new_text})
+        return self.history_messages[session_id]
+            
+        
     
     async def initialize(self):
         """
@@ -112,7 +133,7 @@ class OpenaiService(BaseService):
             self.logger.error(f"Unexpected error testing API connection: {e}")
             return False
     
-    async def process(self, text: str, **kwargs) -> str:
+    async def process(self, text: str, session_id: str, **kwargs) -> str:
         """
         处理用户文本并返回AI响应
         
@@ -137,14 +158,7 @@ class OpenaiService(BaseService):
             top_p = kwargs.get("top_p", self.config.get("top_p", 0.9))
             stream = kwargs.get("stream", self.config.get("stream", False))
             # 构建消息
-            messages = []
-            # 添加系统提示词
-            if self.system_prompt:
-                messages.append({"role": "system", "content": self.system_prompt})
-            
-            # 添加用户消息
-            messages.append({"role": "user", "content": text})
-            
+            messages = self._get_history_messages(session_id, text)
             # 使用OpenAI客户端调用API
             if stream:
                 return await self._process_stream(model, messages, temperature, max_tokens, top_p)

@@ -111,14 +111,20 @@ class ServiceBroker:
         try:
             message_data = parse_message(message_str)
             msg_type_str = message_data.get("type")
-            msg_type  = MessageType(msg_type_str) 
+            msg_type  = MessageType(msg_type_str)
             payload = message_data.get("payload", {})
-            request_id = message_data.get("request_id") # todo: 用于跟踪请求
-
+            request_id = message_data.get("request_id") # todo: 用于跟踪请求（目前不打算实现）
+            
+            session_id = payload.get("session_id")
+            if session_id is None:
+                logger.error("No session_id in payload")
+                await self._send_error_response(websocket, "Missing session_id, no response for this request", request_id)
+                return
+            
             logger.debug(f"Broker received message: Type='{msg_type_str}', Payload='{payload}', RequestID='{request_id}'")
 
             if msg_type == MessageType.AUDIO_INPUT:
-                # 假设 payload 包含 {"audio_data_base64": "...", "format": "wav"}
+                # 需要 payload 包含 {"audio_data_base64": "...", "format": "wav"}
                 audio_data_base64 = payload.get("audio_data_base64")
                 if not audio_data_base64:
                     logger.error("No audio_data_base64 in AUDIO_INPUT payload")
@@ -132,7 +138,7 @@ class ServiceBroker:
                     await self._send_error_response(websocket, f"Invalid base64 audio data: {e}", request_id)
                     return
 
-                await self._process_audio_pipeline(websocket, audio_bytes, request_id)
+                await self._process_audio_pipeline(websocket, audio_bytes, session_id, request_id)
 
             elif msg_type == MessageType.TEXT_INPUT:
                 user_text = payload.get("text")
@@ -140,7 +146,7 @@ class ServiceBroker:
                     logger.error("No text in TEXT_INPUT payload")
                     await self._send_error_response(websocket, "Missing text in payload", request_id)
                     return
-                await self._process_text_pipeline(websocket, user_text, request_id)
+                await self._process_text_pipeline(websocket, user_text, session_id, request_id)
 
             elif msg_type == MessageType.MIXED_INPUT:
                 logger.info(f"Received MIXED_INPUT (Request ID: {request_id}). Processing not yet implemented.")
@@ -168,7 +174,7 @@ class ServiceBroker:
             logger.error(f"Error handling message in Broker: {e}", exc_info=True)
             await self._send_error_response(websocket, f"Internal server error: {e}", message_data.get("request_id") if 'message_data' in locals() else None)
 
-    async def _process_audio_pipeline(self, websocket: Any, audio_bytes: bytes, request_id: Optional[str]):
+    async def _process_audio_pipeline(self, websocket: Any, audio_bytes: bytes, session_id: str, request_id: Optional[str]):
         """完整的音频处理流程：STT -> LLM -> TTS -> Emotion -> LipSync -> AI_RESPONSE"""
         recognized_text = ""
         ai_response_text = ""
@@ -183,7 +189,7 @@ class ServiceBroker:
             
             # 2. LLM: 文本生成回复
             llm_service = self.get_service('llm')
-            ai_response_text = await llm_service.process(recognized_text)
+            ai_response_text = await llm_service.process(recognized_text, session_id=session_id)
             logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
             
             # 3. TTS: 文本转语音
@@ -225,7 +231,7 @@ class ServiceBroker:
             logger.error(f"Error in audio processing pipeline (Request ID: {request_id}): {e}", exc_info=True)
             await self._send_error_response(websocket, f"Error in audio processing pipeline: {e}", request_id)
 
-    async def _process_text_pipeline(self, websocket: Any, user_text: str, request_id: Optional[str]):
+    async def _process_text_pipeline(self, websocket: Any, user_text: str, session_id: str, request_id: Optional[str]):
         """文本输入处理流程：LLM -> TTS -> Emotion -> LipSync -> AI_RESPONSE"""
         ai_response_text = ""
         tts_output = {}
@@ -235,7 +241,7 @@ class ServiceBroker:
             
             # 1. LLM: 文本生成回复
             llm_service = self.get_service('llm')
-            ai_response_text = await llm_service.process(user_text)
+            ai_response_text = await llm_service.process(user_text, session_id=session_id)
             logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
             
             # todo: 生成文本清洗 + 重组 ，方便生成高质量的语音
