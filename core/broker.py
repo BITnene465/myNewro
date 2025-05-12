@@ -173,7 +173,6 @@ class ServiceBroker:
         recognized_text = ""
         ai_response_text = ""
         tts_output = {}
-        emotion_params = {}
         lipsync_params = {}
 
         try:
@@ -192,34 +191,19 @@ class ServiceBroker:
             tts_output = await tts_service.process(ai_response_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
             
-            # 4. Emotion: 根据LLM回复生成表情参数
-            if self.has_service('emotion'):
-                emotion_service = self.get_service('emotion')
-                emotion_params = await emotion_service.process(ai_response_text)
-                logger.info(f"Emotion params: {emotion_params} (Request ID: {request_id})")
-            else:
-                logger.warning("Emotion service not available, skipping emotion processing")
-                emotion_params = {"error": "Emotion service not available"}
-            
-            # 5. LipSync: 根据TTS音频和文本生成口型参数
-            if tts_output.get("audio_data") and tts_output.get("audio_format") != "error":
+            # 4. LipSync: 根据TTS音频和文本生成口型参数
+            if tts_output.get("audio_data"):
                 lipsync_service = self.get_service('lipsync')
-                lipsync_params = await lipsync_service.process(
-                    tts_audio_data_base64=tts_output['audio_data'],
-                    text=tts_output.get('text_source', ai_response_text),
-                    audio_format=tts_output.get('audio_format', 'mp3_base64').split('_')[0]
-                )
+                lipsync_params = None # 待实现
                 logger.info(f"LipSync params generated (Request ID: {request_id})")
             else:
                 logger.warning(f"Skipping LipSync due to missing or error in TTS audio data (Request ID: {request_id})")
                 lipsync_params = {"error": "LipSync skipped due to TTS issue"}
-
-
-            # 6. 组合并发送单一 AI_RESPONSE 消息
+                
+            # 5. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
                 "text": ai_response_text,
-                "audio": tts_output, # 包含 audio_data, audio_format, text_source, source_type
-                "emotion": emotion_params,
+                "audio": tts_output, # 包含 audio_data, audio_format
                 "lipsync": lipsync_params,
                 "recognized_text": recognized_text # 用户通过STT识别的文本
             }
@@ -232,7 +216,6 @@ class ServiceBroker:
             final_payload = {
                 "text": ai_response_text,
                 "audio": tts_output,
-                "emotion": emotion_params,
                 "lipsync": lipsync_params, # 会包含错误信息
                 "recognized_text": recognized_text
             }
@@ -246,7 +229,6 @@ class ServiceBroker:
         """文本输入处理流程：LLM -> TTS -> Emotion -> LipSync -> AI_RESPONSE"""
         ai_response_text = ""
         tts_output = {}
-        emotion_params = {}
         lipsync_params = {}
         try:
             logger.info(f"Processing text input: '{user_text}' (Request ID: {request_id})")
@@ -256,38 +238,26 @@ class ServiceBroker:
             ai_response_text = await llm_service.process(user_text)
             logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
             
+            # todo: 生成文本清洗 + 重组 ，方便生成高质量的语音
+            
             # 2. TTS: 文本转语音
             tts_service = self.get_service('tts')
             tts_output = await tts_service.process(ai_response_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
-            
-            # 3. Emotion: 根据LLM回复生成表情参数
-            if self.has_service('emotion'):
-                emotion_service = self.get_service('emotion')
-                emotion_params = await emotion_service.process(ai_response_text)
-                logger.info(f"Emotion params: {emotion_params} (Request ID: {request_id})")
-            else:
-                logger.warning("Emotion service not available, skipping emotion processing")
-                emotion_params = {"error": "Emotion service not available"}
 
-            # 4. LipSync: 根据TTS音频和文本生成口型参数
-            if tts_output.get("audio_data") and tts_output.get("audio_format") != "error":
+            # 3. LipSync: 根据TTS音频和文本生成口型参数
+            if tts_output.get("audio_data"):
                 lipsync_service = self.get_service('lipsync')
-                lipsync_params = await lipsync_service.process(
-                    tts_audio_data_base64=tts_output['audio_data'],
-                    text=tts_output.get('text_source', ai_response_text),
-                    audio_format=tts_output.get('audio_format', 'mp3_base64').split('_')[0]
-                )
+                lipsync_params = None # todo 待实现
                 logger.info(f"LipSync params generated (Request ID: {request_id})")
             else:
                 logger.warning(f"Skipping LipSync due to missing or error in TTS audio data (Request ID: {request_id})")
                 lipsync_params = {"error": "LipSync skipped due to TTS issue"}
 
-            # 5. 组合并发送单一 AI_RESPONSE 消息
+            # 4. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
                 "text": ai_response_text, # AI生成的回复文本
                 "audio": tts_output,
-                "emotion": emotion_params,
                 "lipsync": lipsync_params,
                 "recognized_text": user_text # 用户直接输入的文本
             }
@@ -299,7 +269,6 @@ class ServiceBroker:
             final_payload = {
                 "text": ai_response_text,
                 "audio": tts_output,
-                "emotion": emotion_params,
                 "lipsync": lipsync_params,
                 "recognized_text": user_text
             }

@@ -3,6 +3,7 @@ import sys
 import asyncio
 import time
 from pathlib import Path
+import base64
 
 # 添加项目根目录到Python路径
 sys.path.append(str(Path(__file__).parent.parent))
@@ -25,13 +26,14 @@ async def test_tts_service():
         "api_base_url": "http://localhost:9880",  # 确保GPTsoVITS服务正在运行
         "speed": 1.0,
         "audio_format": "wav",
-        "default_refer_wav_path": "/workspace/SoVITS_weights/ref_audio/dz.wav",  # 默认参考音频路径
-        "default_prompt_text": "大家好呀。今天是我第一次尝试在雨天直播呢，欢迎大家来到我的频道。",  
-        "default_prompt_language": "zh", 
+        "ref_audio_path": "G:\\GPT-SoVITS-DockerTest\\SoVITS_weights\\ref_audio\\tafei1.wav",  # 默认参考音频路径
+        "prompt_text": "你好，这里是我的频道，欢迎大家来和我聊天！",  
+        "prompt_language": "zh", 
         "text_language": "zh",
         "top_k": 20,
         "top_p": 0.9,
-        "temperature": 0.8
+        "temperature": 0.9,
+        "text_split_method": "cut0",
     }
     tts_service = GPTsovitsService(service_name="GPTsoVITS", config=TTS_SERVICE_CONFIG)
     
@@ -53,7 +55,7 @@ async def test_tts_service():
                 format="wav",
             )
             
-            audio_data = result["audio_data"]
+            audio_data = base64.b64decode(result["audio_data"])
             audio_format = result.get("audio_format", "wav")
             
             print(f"语音合成完成，耗时: {time.time() - start_time:.2f} 秒")
@@ -67,7 +69,6 @@ async def test_tts_service():
             print(f"语音文件已保存到: {output_file}")
         except Exception as e:
             print(f"测试1失败: {e}")
-            print("API可能没有设置默认参考音频，请继续下一个测试")
         
         # 测试4: 测试不同参数组合
         print("\n测试4: 测试不同参数组合")
@@ -84,7 +85,7 @@ async def test_tts_service():
                 format="wav",
             )
             
-            audio_data = result["audio_data"]
+            audio_data = base64.b64decode(result["audio_data"])
             
             print(f"带切分的语音合成完成，大小: {len(audio_data)/1024:.2f} KB")
             

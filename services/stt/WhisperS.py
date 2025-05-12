@@ -27,12 +27,14 @@ class WhisperService(BaseService):
                 - device: 计算设备 (cpu, cuda)
                 - language: 语言代码，如'zh'表示中文 
         """
-        if config is None:
-            config = {
+        config_default = {
                 "model_size": self.DEFAULT_MODEL_SIZE,
                 "device": "cuda" if torch.cuda.is_available() else "cpu",
                 "language": "zh"  # 默认中文
-            }
+         }
+        if config is None:
+            config = {}
+        config = {**config_default, **config}
         super().__init__(service_name, config)
         self.model = None
         self.device = torch.device(self.config["device"])

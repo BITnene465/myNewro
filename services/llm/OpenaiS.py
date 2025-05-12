@@ -29,16 +29,18 @@ class OpenaiService(BaseService):
                 - top_p: top-p采样参数
                 - stream: 是否使用流式响应
         """
-        if config is None:
-            config = {
+        config_default = {
                 "api_key": os.environ.get("DEEPSEEK_API_KEY", ""),
                 "api_base_url": "https://api.deepseek.com/v1",
                 "model": "deepseek-chat",  # DeepSeek默认模型
-                "temperature": 0.7,
+                "temperature": 0.8,
                 "max_tokens": 2000,
                 "top_p": 0.9,
                 "stream": False
             }
+        if config is None:
+            config = {}
+        config = {**config_default, **config} 
         super().__init__(service_name, config)
         self.client = None
         self.system_prompt = self._load_system_prompt()
@@ -54,11 +56,11 @@ class OpenaiService(BaseService):
             return sys_prompt
         
         sys_prompt_file = self.config.get("system_prompt_file")
-        if sys_prompt_file and os.path.exists(sys_prompt_file):
+        if sys_prompt_file is not None and os.path.exists(sys_prompt_file):
             with open(sys_prompt_file, "r", encoding="utf-8") as f:
                 return f.read().strip()
     
-        return "你是一个虚拟主播"
+        return "你是虚拟主播小田，是一个新人出道的虚拟up主。"
     
     async def initialize(self):
         """

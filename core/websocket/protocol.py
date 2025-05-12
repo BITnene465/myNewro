@@ -14,8 +14,12 @@ class MessageType(Enum):
     
     # 一般是输出
     AI_RESPONSE = "ai_response"         # 后端生成的回复： 文本 + 音频 + 唇形同步 + 情感分类（对应动作）
-    ERROR = "error"                      # 错误消息
 
+    # 系统消息
+    SYSTEM_STATUS = "system_status"      # 系统状态消息
+    ERROR = "error"                      # 错误消息
+    
+    
 def create_message(msg_type: MessageType, payload: Optional[Dict[str, Any]] = None, request_id: Optional[str] = None) -> str:
     """
     创建标准格式的WebSocket消息。

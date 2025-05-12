@@ -27,12 +27,14 @@ class Wav2vecService(BaseService):
                 - device: 计算设备 (cpu, cuda)
                 - local_models_path: 本地模型存储路径
         """
-        if config is None:
-            config = {
+        config_default = config = {
                 "model_name": self.DEFAULT_MODEL_NAME,  
                 "device": "cuda" if torch.cuda.is_available() else "cpu",  # 优先使用GPU
                 "local_models_path": "models" 
             }
+        if config is None:
+            config = {}
+        config = {**config_default, **config} 
         super().__init__(service_name, config)
         self.model = None
         self.processor = None

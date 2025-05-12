@@ -30,12 +30,12 @@ class WebSocketServer:
             logger.error(f"Error sending message to {websocket.remote_address}: {e}", exc_info=True)
 
 
-    async def handler(self, websocket: WebSocketServerProtocol, path: str):
+    async def handler(self, websocket: WebSocketServerProtocol):
         """
         处理单个WebSocket连接。
         为每个连接的生命周期调用。
         """
-        logger.info(f"Client connected: {websocket.remote_address}, Path: {path}")
+        logger.info(f"Client connected: {websocket.remote_address}")
         self.broker.register_connection(websocket, self._send_message)
         
         try:
@@ -72,8 +72,9 @@ class WebSocketServer:
                 self.handler,
                 self.host,
                 self.port,
-                ping_interval=20, # 保持连接活跃
-                ping_timeout=20
+                ping_interval=60, # 保持连接活跃
+                ping_timeout=60,
+                max_size= 50 * 1024 * 1024,
             )
             logger.info("WebSocket server started successfully.")
            #  await self.server.wait_closed() # 保持服务器运行直到被关闭
