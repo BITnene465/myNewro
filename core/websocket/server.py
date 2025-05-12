@@ -40,12 +40,12 @@ class WebSocketServer:
         
         try:
             # 发送连接成功消息
-            # welcome_message = create_message(MessageType.SYSTEM_STATUS, {"message": "Connected to AI Virtual Anchor server."})
-            # await websocket.send(welcome_message)
-            # Broker可以处理更通用的系统消息
+            welcome_message = create_message(MessageType.SYSTEM_STATUS, {"message": "Connected to AI Virtual Anchor server."})
+            await websocket.send(welcome_message)  # send 只负责把消息送到网络信道上
+            # todo: Broker可以处理更通用的系统消息
 
             async for message_str in websocket:
-                if not isinstance(message_str, str): # 二进制消息暂不处理，或根据需要处理
+                if not isinstance(message_str, str): # 二进制消息暂不处理
                     logger.warning(f"Received non-text message from {websocket.remote_address}, ignoring.")
                     continue
                 logger.debug(f"Received message from {websocket.remote_address}: {message_str[:200]}") # 打印部分消息
@@ -57,12 +57,6 @@ class WebSocketServer:
             logger.warning(f"Connection closed with error for {websocket.remote_address}: {e}")
         except Exception as e:
             logger.error(f"Error in WebSocket handler for {websocket.remote_address}: {e}", exc_info=True)
-            # 尝试发送错误信息给客户端，如果连接还可用
-            try:
-                error_response = create_message(MessageType.ERROR, {"message": "An unexpected server error occurred."})
-                await websocket.send(error_response)
-            except Exception as send_err:
-                logger.error(f"Could not send error to client {websocket.remote_address} after handler error: {send_err}")
         finally:
             self.broker.unregister_connection(websocket)
             logger.info(f"Cleaned up connection for {websocket.remote_address}")

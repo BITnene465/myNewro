@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# 测试未完全通过，已转战 webui
 import os
 import asyncio
 import aiohttp
@@ -9,7 +11,7 @@ from ..base import BaseService
 
 class GPTsovitsService(BaseService):
     """
-    基于GPTsoVITS的文本转语音服务
+    基于GPTsoVITS的文本转语音服务，适配原仓库的 api.py 接口
     """
     def __init__(self, service_name: str = "tts", config: Dict[str, Any] = None):
         """

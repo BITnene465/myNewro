@@ -57,7 +57,6 @@ async def main():
     主异步函数，初始化并运行应用程序。
     """
     logger.info("Starting AI Virtual Anchor Backend...")
-
     # 1. 初始化服务
     stt_service, llm_service, tts_service, lipsync_service = choose_services()
 
