@@ -4,9 +4,9 @@ Newro AI 虚拟主播后端服务集成测试脚本
 
 该脚本模拟以下流程：
 1. 连接到WebSocket服务器
-2. 发送文本输入 (chat 消息)
+2. 发送文本输入 
 3. 接收并打印服务器响应
-4. 发送音频输入 (speech-to-text 消息)
+4. 发送音频输入 
 5. 接收并打印语音识别结果
 """
 import asyncio
@@ -28,6 +28,7 @@ from config import settings
 WS_HOST = "localhost"
 WS_PORT = 8765
 WS_URI = f"ws://{WS_HOST}:{WS_PORT}"
+session_id = "test-session-123"
 
 # 创建全局异步播放队列和信号量
 audio_queue = asyncio.Queue()
@@ -84,16 +85,13 @@ async def test_websocket_client():
             
             # 1. 测试文本输入 (text input)
             print("\n===== 测试文本输入 =====")
-            text_message = {
-                "type": "text_input",
-                "payload": {
-                    "text": "你好，请介绍一下你自己",
-                    "session_id": "test-session-123",
-                },
+            payload =  {
+                "text": "你好，请介绍以下你自己",
+                "session_id": session_id,  # 必须包含，会用于索引历史对话信息
             }
-            
-            print(f"发送消息: {text_message}")
-            await websocket.send(json.dumps(text_message))
+            message = create_message(msg_type=MessageType.TEXT_INPUT, payload=payload) 
+            print(f"发送消息: {message}")
+            await websocket.send(message)
             
             # 等待响应
             print("等待响应...")
@@ -129,18 +127,14 @@ async def test_websocket_client():
                 
                 # 将音频数据编码为base64字符串
                 audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-                
-                # 创建音频输入消息
-                audio_message = {
-                    "type": "audio_input",
-                    "payload": {
-                        "audio_data_base64": audio_base64,
-                        "session_id": "test-session-123",
-                    },
+                payload = {
+                    "audio_data_base64": audio_base64,
+                    "session_id": session_id,
                 }
+                message = create_message(msg_type=MessageType.AUDIO_INPUT, payload=payload)
                 
                 print(f"发送音频消息...")
-                await websocket.send(json.dumps(audio_message))
+                await websocket.send(message)
                 
                 # 等待响应
                 print("等待语音识别响应...")
@@ -154,6 +148,8 @@ async def test_websocket_client():
                 
                 # 异步播放，不阻塞主线程
                 await play_audio_async(audio_data, audio_form)
+                # 等待音频播放完成
+                await audio_queue.join()
             
             print("\n测试完成!")
             
