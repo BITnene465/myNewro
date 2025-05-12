@@ -156,14 +156,20 @@ class OpenaiService(BaseService):
             temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
             max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 2000))
             top_p = kwargs.get("top_p", self.config.get("top_p", 0.9))
-            stream = kwargs.get("stream", self.config.get("stream", False))
+            stream_mode = kwargs.get("stream", self.config.get("stream", False))
             # 构建消息
             messages = self._get_history_messages(session_id, text)
             # 使用OpenAI客户端调用API
-            if stream:
-                return await self._process_stream(model, messages, temperature, max_tokens, top_p)
+            if stream_mode:
+                # todo: 目前流式有 bug，还是不要使用
+                response_content = await self._process_stream(model, messages, temperature, max_tokens, top_p)
             else:
-                return await self._process_normal(model, messages, temperature, max_tokens, top_p)
+                response_content = await self._process_normal(model, messages, temperature, max_tokens, top_p)
+            
+            # 将AI的回复添加到历史消息中
+            if session_id in self.history_messages and response_content is not None:
+                self.history_messages[session_id].append({"role": "assistant", "content": response_content})
+            return response_content
                 
         except RateLimitError as e:
             self.logger.error(f"Rate limit exceeded: {e}")
