@@ -64,7 +64,7 @@ class GPTsovitsService(BaseService):
         try:
             # 创建API会话
             self.api_session = aiohttp.ClientSession()
-            # 测试API连接 (需要在原本 api_v2.py 中手动添加路由)
+            # 测试API连接 ( important！ 需要在原本 api_v2.py 中手动添加 /health 路由)
             base_url = self.config.get("api_base_url")
             async with self.api_session.get(f"{base_url}/health") as response:
                 if response.status != 200:
@@ -74,7 +74,7 @@ class GPTsovitsService(BaseService):
                 if not health_info.get("ready", False):
                     raise RuntimeError("GPTsoVITS API is not ready")
                 self.logger.info("GPTsoVITS TTS service initialized successfully")
-            self._is_ready = True
+            self.set_ready()
                 
         except aiohttp.ClientError as e:
             self.logger.error(f"Network error during initialization: {e}")
@@ -286,10 +286,9 @@ class GPTsovitsService(BaseService):
     
     async def shutdown(self):
         """释放资源"""
-        self.logger.info("Shutting down GPTsoVITS TTS service") 
+        await super().shutdown()
         # 关闭API会话
+        self.logger("shuting down the api session...")
         if self.api_session:
             await self.api_session.close()
             self.api_session = None
-        self._is_ready = False
-        await super().shutdown()
