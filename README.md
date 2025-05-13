@@ -21,7 +21,7 @@ Newro是一个基于WebSocket的AI虚拟主播系统，支持文本和语音双�
 
 1. 克隆项目代码
 ```bash
-git clone [项目仓库地址]
+git clone https://github.com/BITnene465/myNewro
 cd newroBackend
 ```
 
@@ -30,6 +30,8 @@ cd newroBackend
 pip install -r requirements.txt
 ```
 3. 调整设置，见 config/settings_example.py 文件，仿照格式设置 settings.py 并且放置于config目录下
+   - 设置大模型 api_key
+   - 部署 GPTsoVITS 服务，并且在配置文件中设置相关变量
 
 4. 启动后端服务
 ```bash
