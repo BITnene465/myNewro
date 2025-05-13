@@ -1,134 +1,96 @@
-# Newro AI 虚拟主播后端服务
+# Newro AI 虚拟主播系统
 
-这是一个基于Python的AI虚拟主播后端服务系统，提供语音识别(STT)、大语言模型(LLM)对话、文本转语音(TTS)及唇形同步等功能，可用于创建交互式AI虚拟主播或数字人应用。
+Newro是一个基于WebSocket的AI虚拟主播系统，支持文本和语音双向交互，能够实时生成文本和语音回复。
 
-## 项目架构
+## 功能特点
 
-```
-newroBackend/
-├── config/              # 配置文件目录
-│   ├── settings.py      # 主配置文件
-│   └── system_prompt.txt# LLM系统提示词
-├── core/                # 核心功能模块
-│   ├── broker.py        # 服务协调器
-│   └── websocket/       # WebSocket服务器
-│       ├── protocol.py  # 通信协议定义
-│       └── server.py    # WebSocket服务器实现
-├── models/              # 本地模型文件
-│   └── wav2vec2-large-xlsr-53-chinese-zh-cn/  # 语音识别模型
-├── services/            # 服务模块
-│   ├── base.py          # 服务基类
-│   ├── llm.py           # 大语言模型服务
-│   ├── stt.py           # 语音识别服务
-│   ├── tts.py           # 语音合成服务
-│   └── lips.py          # 唇形同步服务
-├── tests/               # 测试模块
-│   ├── test_llm.py      # LLM服务测试
-│   ├── test_stt.py      # STT服务测试
-│   └── test_tts.py      # TTS服务测试
-└── main.py              # 主程序入口
-```
+- 💬 文本交互：接收文本输入并生成AI回复
+- 🎤 语音识别：接收音频输入并转换为文本
+- 🔊 语音合成：将AI回复转换为自然语音
+- 🧠 上下文记忆：基于会话ID保持对话连贯性
+- 🔄 实时通信：使用WebSocket实现低延迟交互
 
-## 主要功能
-
-### 1. 语音识别服务 (STT)
-
-使用Hugging Face的Wav2Vec2模型进行中文语音识别，支持本地模型加载与推理。
-
-- 模型：`jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn`
-- 支持音频文件和字节流输入
-- 自动采样率转换
-
-### 2. 大语言模型服务 (LLM)
-
-基于DeepSeek API的大语言模型服务，支持对话生成和流式输出。
-
-- 使用OpenAI兼容接口
-- 支持自定义系统提示词
-- 可配置温度、最大token数等参数
-- 支持普通和流式响应
-
-### 3. 文本转语音服务 (TTS)
-
-基于GPTsoVITS的文本转语音服务，支持自然、情感化的语音合成。
-
-- 支持多种音色
-- 可调节语速和情感参数
-- 支持WAV、MP3等音频格式输出
-
-### 4. 唇形同步服务
-
-提供语音与唇形动作同步功能，用于虚拟形象动画。
-
-### 5. 服务协调器 (Broker)
-
-管理各服务模块间的通信和协作，提供统一接口。
-
-### 6. WebSocket服务器
-
-提供WebSocket接口，使前端应用能实时与后端交互。
-
-## 安装与配置
+## 快速开始
 
 ### 环境要求
 
 - Python 3.10
-- PyTorch 1.10+
-- CUDA 11.3+（推荐GPU加速）
+- 必要的依赖包（见requirements.txt）
 
-### 依赖安装
+### 安装步骤
 
+1. 克隆项目代码
+```bash
+git clone [项目仓库地址]
+cd newroBackend
+```
+
+2. 安装依赖
 ```bash
 pip install -r requirements.txt
 ```
+3. 调整设置，见 config/settings_example.py 文件，仿照格式设置 settings.py 并且放置于config目录下
 
-### 配置说明
-
-在`config/settings.py`中可以配置各服务参数：
-
-- WebSocket服务器配置（主机、端口）
-- LLM服务配置（API密钥、模型等）
-- STT服务配置（模型路径、设备等）
-- TTS服务配置（API基础URL、合成参数等）
-
-## 运行
-
-启动主服务：
-
+4. 启动后端服务
 ```bash
 python main.py
 ```
 
-## 测试
-
-测试语音识别：
-
+### 简单测试
+测试服务是否正常运行
 ```bash
-python tests/test_stt.py
+python demo.py
 ```
 
-测试大语言模型：
-
+使用命令行工具直接与虚拟主播交互：
 ```bash
-python tests/test_llm.py
+python demo2.py
 ```
 
-测试语音合成：
+## 项目结构
 
-```bash
-python tests/test_tts.py
-```
+newroBackend/
+├── config/               # 配置文件
+│   ├── settings.py       # 项目配置
+│   └── settings_example.py # 示例配置
+├── core/                 # 核心功能
+│   ├── websocket/        # WebSocket通信协议和处理器
+│   └── message/          # 消息处理
+├── services/             # 服务实现
+│   ├── llm/              # 大语言模型服务
+│   ├── tts/              # 语音合成服务
+│   ├── stt/              # 语音识别服务
+│   └── base.py           # 服务基类
+├── tests/                # 测试代码（都是独立运行的单元测试脚本）
+│   └── test_data/        # 测试数据
+├── utils/                # 实用工具
+│   └── helpers.py        # 辅助函数
+├── README.md             # 项目说明
+├── LICENSE               # 许可证
+├── requirements.txt      # 依赖包
+├── main.py               # 主程序入口
+├── demo.py               # 演示脚本
+└── demo2.py              # 命令行交互演示
 
-## WebSocket API
 
-客户端可通过WebSocket接口发送以下类型的请求：
+## 文档
 
-- `audio_input`: 语音请求
-- `text_input`: 纯文本对话请求
-- `mixed_input`: 多模态的输入请求
-
-详细协议格式请参考`core/websocket/protocol.py`文件。
+- [API文档](API.md)
+- [前端集成指南](FRONTEND_INTEGRATION.md) (coming soon)
 
 ## 许可证
 
-[MIT License](LICENSE)
+本项目采用MIT许可证。详见[LICENSE](LICENSE)文件。
+
+
+## todo
+- [x] 支持多客户端并发的 websocket 服务器
+- [x] 添加 whisper 作为基础 stt 服务 
+- [x] 适配 GPTsoVITS api_v2 提供基础 tts 服务
+- [x] 适配 openai api 作为基础 llm 服务
+- [ ] 实现 live2d 的口型同步算法 
+- [ ] 实现简单的RAG
+- [ ] 添加自定义大（小）模型的服务端API，使用 fastAPI 构建
+- [ ] 支持多语言交互
+- [ ] 添加更多语音模型选择
+- [ ] 增加更加详细错误处理和恢复机制
