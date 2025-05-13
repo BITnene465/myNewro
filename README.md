@@ -51,6 +51,7 @@ python demo2.py
 
 ## 项目结构
 
+```bash
 newroBackend/
 ├── config/               # 配置文件
 │   ├── settings.py       # 项目配置
@@ -73,7 +74,7 @@ newroBackend/
 ├── main.py               # 主程序入口
 ├── demo.py               # 演示脚本
 └── demo2.py              # 命令行交互演示
-
+```
 
 ## 文档
 
@@ -86,13 +87,13 @@ newroBackend/
 
 
 ## todo
-- [x] 支持多客户端并发的 websocket 服务器
-- [x] 添加 whisper 作为基础 stt 服务 
-- [x] 适配 GPTsoVITS api_v2 提供基础 tts 服务
-- [x] 适配 openai api 作为基础 llm 服务
-- [ ] 实现 live2d 的口型同步算法 
-- [ ] 实现简单的RAG
-- [ ] 添加自定义大（小）模型的服务端API，使用 fastAPI 构建
-- [ ] 支持多语言交互
-- [ ] 添加更多语音模型选择
-- [ ] 增加更加详细错误处理和恢复机制
+* [x] 支持多客户端并发的 websocket 服务器
+* [x] 添加 whisper 作为基础 stt 服务 
+* [x] 适配 GPTsoVITS api_v2 提供基础 tts 服务
+* [x] 适配 openai api 作为基础 llm 服务
+* [ ] 实现 live2d 的口型同步算法 
+* [ ] 实现简单的RAG
+* [ ] 添加自定义大（小）模型的服务端API，使用 fastAPI 构建
+* [ ] 支持多语言交互
+* [ ] 添加更多语音模型选择
+* [ ] 增加更加详细错误处理和恢复机制
