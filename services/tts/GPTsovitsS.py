@@ -42,7 +42,7 @@ class GPTsovitsService(BaseService):
             "audio_format": "wav",                             
             "top_k": 5,                                       
             "top_p": 0.7,                                      
-            "temperature": 0.6,
+            "temperature": 0.8,
             "text_split_method": "cut5",
             "batch_size": 8,
             "repetition_penalty": 1.35,
