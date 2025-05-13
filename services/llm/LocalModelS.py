@@ -14,10 +14,11 @@ class LocalModelService(BaseService):
         config_default = {
                 "api_key": "",   # 目前暂时没有加入身份验证
                 "api_base_url": "http://localhost:10721",
-                "model": "",  
+                "model_name": "Qwen3-1.7b",  
                 "temperature": 0.8,
                 "max_tokens": 2000,
                 "top_p": 0.9,
+                "enable_thinking": False,
             }
         if config is None:
             config = {}
@@ -76,6 +77,14 @@ class LocalModelService(BaseService):
             if not ready:
                 raise RuntimeError("LLM Server is not ready")
             self.set_ready()
+            
+            # 选择初始模型
+            model_name = self.config.get("model_name")
+            if not model_name:
+                raise ValueError("initial Model name is required")
+            model_name = await self.client.switch_model(model_name)   # 没写 await，查bug查半天
+            self.logger.info(f"LLM service initialized with model: {model_name}")
+            
         except Exception as e:
             self.logger.error(f"Failed to initialize LLM service: {e}")
             if self.client:
@@ -108,10 +117,11 @@ class LocalModelService(BaseService):
             temperature = kwargs.get("temperature", self.config.get("temperature", 0.7))
             max_tokens = kwargs.get("max_tokens", self.config.get("max_tokens", 2000))
             top_p = kwargs.get("top_p", self.config.get("top_p", 0.9))
+            enable_thinking = kwargs.get("enable_thinking", self.config.get("enable_thinking", False))
             # 构建消息
             messages = self._get_history_messages(session_id, text)
             # ai 生成
-            response_content = await self._process_normal(model, messages, temperature, max_tokens, top_p)
+            response_content = await self._process_normal(model, messages, temperature, max_tokens, top_p, enable_thinking)
             # 将AI的回复添加到历史消息中
             if session_id in self.history_messages and response_content is not None:
                 self.history_messages[session_id].append({"role": "assistant", "content": response_content})
@@ -121,7 +131,7 @@ class LocalModelService(BaseService):
             
     
     async def _process_normal(self, model: str, messages: List[Dict[str, str]], 
-                             temperature: float=0.7, max_tokens: int=2000, top_p: float=0.8) -> str:
+                             temperature: float=0.7, max_tokens: int=2000, top_p: float=0.8, enable_thinking=False) -> str:
         """
         非流式处理API请求
         
@@ -141,7 +151,8 @@ class LocalModelService(BaseService):
                 model=model,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                top_p=top_p
+                top_p=top_p,
+                enable_thinking=enable_thinking,
             )
             self.logger.info(f"Successfully got response from LLM API: '{content[:50]}...'")
             return content
@@ -168,7 +179,7 @@ class NewroLLMClient:
         self.session = aiohttp.ClientSession()
     
     async def chat_completion(self, messages: List[Dict[str, str]], 
-                              model: str, temperature: float, max_tokens: int, top_p: float) -> str:
+                              model: str, temperature: float, max_tokens: int, top_p: float, enable_thinking: bool=False) -> str:
         """
         调用聊天补全API
         Args:
@@ -187,15 +198,54 @@ class NewroLLMClient:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "top_p": top_p
+            "top_p": top_p,
+            "enable_thinking": enable_thinking,
         }
         
         async with self.session.post(url, json=data) as response:
             if response.status != 200:
                 raise Exception(f"Error {response.status}: {await response.text()}")
             result = await response.json()
-            return result.get("generated_text", "")
+            return result.get("content", "")
     
+    async def check_health(self) -> bool:
+        """
+        检查服务是否可用
+        Returns:
+            bool: 如果服务可用，则返回True，否则返回False
+        """
+        url = f"{self.api_base_url}/health"
+        async with self.session.get(url) as response:
+            if response.status != 200:
+                return False
+            result = await response.json()
+            return result.get("ready") == True
+                
+    async def switch_model(self, model_name: str):
+        """
+        切换模型
+        Args:
+            model: 模型名称
+        """
+        async with self.session.post(f"{self.api_base_url}/models/switch", json={"model_name": model_name}) as response:
+            if response.status != 200:
+                raise Exception(f"Error {response.status}: {await response.text()}")
+            response_data = await response.json()
+            # print("response_data", response_data)
+            return response_data.get("current_model")
+    
+    async def get_model_list(self) -> List[str]:
+        """
+        获取可用模型列表
+        Returns:
+            List[str]: 模型名称列表
+        """
+        url = f"{self.api_base_url}/models/list"
+        async with self.session.get(url) as response:
+            if response.status != 200:
+                raise Exception(f"Error {response.status}: {await response.text()}")
+            result = await response.json()
+            return result.get("models", [])
     
     
     async def close(self):
