@@ -48,6 +48,13 @@ class BaseService(ABC):
         检查服务是否已准备好处理请求。
         """
         return self._is_ready
+    
+    def set_ready(self) -> None:
+        self._is_ready = True
+    
+    def set_not_ready(self) -> None:
+        self._is_ready = False
+    
 
     def get_status(self) -> Dict[str, Any]:
         """

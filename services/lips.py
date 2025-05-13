@@ -27,5 +27,5 @@ class LipSyncService(BaseService):
         # 释放资源
         super().shutdown()
         self.model = None 
-        return self._is_ready
+        return self.is_ready()
         

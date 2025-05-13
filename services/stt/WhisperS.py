@@ -52,7 +52,7 @@ class WhisperService(BaseService):
         )
         
         self.logger.info(f"Whisper model loaded successfully on {self.device}")
-        self._is_ready = True
+        self.set_ready()
     
     async def process(self, audio_data: Union[bytes, np.ndarray], **kwargs) -> str:
         """
@@ -127,9 +127,8 @@ class WhisperService(BaseService):
     
     async def shutdown(self):
         """释放资源"""
-        self.logger.info("Shutting down Whisper STT service")
+        await super().shutdown()
+        self.logger.info("shuting down whisper models")
         self.model = None
-        self._is_ready = False
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        await super().shutdown()

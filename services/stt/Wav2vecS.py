@@ -67,7 +67,7 @@ class Wav2vecService(BaseService):
             self.model.to(self.device)
             
             self.logger.info(f"Wav2Vec2 model loaded successfully and moved to {self.device}")
-            self._is_ready = True
+            self.set_ready()
         except Exception as e:
             self.logger.error(f"Failed to load Wav2Vec2 model: {e}")
             raise
@@ -196,10 +196,9 @@ class Wav2vecService(BaseService):
     
     async def shutdown(self):
         """释放资源"""
-        self.logger.info("Shutting down STT service")
+        await super().shutdown()
+        self.logger.info("Shutting down STT models...")
         self.model = None
         self.processor = None
-        self._is_ready = False
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        await super().shutdown()
+            torch.cuda.empty_cache()  # 如果是单进程多服务，可能会出现问题

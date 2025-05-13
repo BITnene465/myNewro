@@ -12,7 +12,7 @@ class OpenaiService(BaseService):
     支持 Openai API 的 LLM 服务
     """
     
-    def __init__(self, service_name: str = "llm", config: Dict[str, Any] = None):
+    def __init__(self, service_name: str = "openaiLLM", config: Dict[str, Any] = None):
         """
         初始化LLM服务
         
@@ -30,7 +30,7 @@ class OpenaiService(BaseService):
                 - stream: 是否使用流式响应
         """
         config_default = {
-                "api_key": os.environ.get("DEEPSEEK_API_KEY", ""),
+                "api_key": os.environ.get("OPENAI_API_KEY", ""),
                 "api_base_url": "https://api.deepseek.com/v1",
                 "model": "deepseek-chat",  # DeepSeek默认模型
                 "temperature": 0.8,
@@ -103,7 +103,7 @@ class OpenaiService(BaseService):
             result = await self.test_connection()
             if result:
                 self.logger.info("Successfully connected to LLM API.")
-                self._is_ready = True
+                self.set_ready()
             else:
                 self.logger.error("Failed to connect to LLM API.")
                 raise ConnectionError("Could not connect to LLM API. Check your API key and URL.")
@@ -244,7 +244,8 @@ class OpenaiService(BaseService):
     
     async def shutdown(self):
         """释放资源"""
-        self.logger.info("Shutting down LLM service")
-        # OpenAI客户端不需要特别的清理
-        self._is_ready = False
         await super().shutdown()
+        self.logger.info("shutting down the llm client session")
+        if self.client is not None:
+            await self.client.close()
+            self.client = None
