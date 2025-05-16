@@ -24,14 +24,13 @@ class ServiceBroker:
     def __init__(self,
                  stt_service: BaseService,
                  llm_service: BaseService,
-                 tts_service: BaseService,
-                 lipsync_service: BaseService):
+                 tts_service: BaseService
+                 ):
         # 使用字典存储所有服务
         self.services = {
             'stt': stt_service,
             'llm': llm_service,
             'tts': tts_service,
-            'lipsync': lipsync_service
         }
         
         self.active_connections: Set[Any] = set() # 存储活跃的WebSocket连接对象
@@ -158,7 +157,6 @@ class ServiceBroker:
                 await self._send_to_client(websocket, MessageType.AI_RESPONSE, {
                     "text": "混合输入处理功能尚未实现。",
                     "audio": None,
-                    "lipsync": None,
                     "emotion": None,
                     "recognized_text": payload.get("text", "") # 如果有文本部分
                 }, request_id)
@@ -196,34 +194,12 @@ class ServiceBroker:
             tts_service = self.get_service('tts')
             tts_output = await tts_service.process(ai_response_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
-            
-            # 4. LipSync: 根据TTS音频和文本生成口型参数
-            if tts_output.get("audio_data"):
-                lipsync_service = self.get_service('lipsync')
-                lipsync_params = None # 待实现
-                logger.info(f"LipSync params generated (Request ID: {request_id})")
-            else:
-                logger.warning(f"Skipping LipSync due to missing or error in TTS audio data (Request ID: {request_id})")
-                lipsync_params = {"error": "LipSync skipped due to TTS issue"}
                 
-            # 5. 组合并发送单一 AI_RESPONSE 消息
+            # 4. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
                 "text": ai_response_text,
                 "audio": tts_output, # 包含 audio_data, audio_format
-                "lipsync": lipsync_params,
                 "recognized_text": recognized_text # 用户通过STT识别的文本
-            }
-            await self._send_to_client(websocket, MessageType.AI_RESPONSE, final_payload, request_id)
-
-        except NotImplementedError as nie: # 特别处理LipSync的NotImplementedError
-            logger.warning(f"LipSync processing is not implemented (Request ID: {request_id}): {nie}")
-            lipsync_params = {"error": "LipSync processing not implemented."}
-            # 即使LipSync未实现，也尝试发送其他部分
-            final_payload = {
-                "text": ai_response_text,
-                "audio": tts_output,
-                "lipsync": lipsync_params, # 会包含错误信息
-                "recognized_text": recognized_text
             }
             await self._send_to_client(websocket, MessageType.AI_RESPONSE, final_payload, request_id)
 
@@ -251,32 +227,11 @@ class ServiceBroker:
             tts_output = await tts_service.process(ai_response_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
 
-            # 3. LipSync: 根据TTS音频和文本生成口型参数
-            if tts_output.get("audio_data"):
-                lipsync_service = self.get_service('lipsync')
-                lipsync_params = None # todo 待实现
-                logger.info(f"LipSync params generated (Request ID: {request_id})")
-            else:
-                logger.warning(f"Skipping LipSync due to missing or error in TTS audio data (Request ID: {request_id})")
-                lipsync_params = {"error": "LipSync skipped due to TTS issue"}
-
-            # 4. 组合并发送单一 AI_RESPONSE 消息
+            # 3. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
                 "text": ai_response_text, # AI生成的回复文本
                 "audio": tts_output,
-                "lipsync": lipsync_params,
                 "recognized_text": user_text # 用户直接输入的文本
-            }
-            await self._send_to_client(websocket, MessageType.AI_RESPONSE, final_payload, request_id)
-
-        except NotImplementedError as nie: # 特别处理LipSync的NotImplementedError
-            logger.warning(f"LipSync processing is not implemented (Request ID: {request_id}): {nie}")
-            lipsync_params = {"error": "LipSync processing not implemented."}
-            final_payload = {
-                "text": ai_response_text,
-                "audio": tts_output,
-                "lipsync": lipsync_params,
-                "recognized_text": user_text
             }
             await self._send_to_client(websocket, MessageType.AI_RESPONSE, final_payload, request_id)
 

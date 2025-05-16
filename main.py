@@ -46,10 +46,7 @@ def choose_services():
     else:
         raise ValueError(f"Unsupported LLM service: {settings.LLM_MODEL_TYPE}")
     
-    from services.lips import LipSyncService
-    lipsync_service = LipSyncService(service_name=settings.LIPSYNC_SERVICE_NAME, config=settings.LIPSYNC_SERVICE)
-    
-    return stt_service, llm_service, tts_service, lipsync_service
+    return stt_service, llm_service, tts_service
     
 
 async def main():
@@ -58,14 +55,13 @@ async def main():
     """
     logger.info("Starting AI Virtual Anchor Backend...")
     # 1. 初始化服务
-    stt_service, llm_service, tts_service, lipsync_service = choose_services()
+    stt_service, llm_service, tts_service = choose_services()
 
     # 2. 初始化服务协调器 (Broker)
     broker = ServiceBroker(
         stt_service=stt_service,
         llm_service=llm_service,
-        tts_service=tts_service,
-        lipsync_service=lipsync_service,
+        tts_service=tts_service
     )
     
     try:

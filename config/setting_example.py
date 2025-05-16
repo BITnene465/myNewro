@@ -63,11 +63,11 @@ elif TTS_MODEL_TYPE == "fish speech":
     TTS_SERVICE = {}
 
 
-## 唇形同步服务配置
-LIPSYNC_SERVICE_NAME = "Lipsync"
-LIPSYNC_SERVICE = {
-    "model_path": PROJECT_ROOT / "models" / "xxx.pth"   # 占位符
-}
+# ## 唇形同步服务配置
+# LIPSYNC_SERVICE_NAME = "Lipsync"
+# LIPSYNC_SERVICE = {
+#     "model_path": PROJECT_ROOT / "models" / "xxx.pth"   # 占位符
+# }
 
 ## llm 服务配置
 SYSTEM_PROMPT = ""
