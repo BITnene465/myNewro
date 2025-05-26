@@ -6,6 +6,7 @@ import asyncio
 import logging
 import base64
 from typing import Any, Dict, Callable, Coroutine, Set, Optional
+from enum import Enum
 
 from services.base import BaseService
 from .websocket.protocol import MessageType, create_message, parse_message
@@ -173,11 +174,10 @@ class ServiceBroker:
             await self._send_error_response(websocket, f"Internal server error: {e}", message_data.get("request_id") if 'message_data' in locals() else None)
 
     async def _process_audio_pipeline(self, websocket: Any, audio_bytes: bytes, session_id: str, request_id: Optional[str]):
-        """完整的音频处理流程：STT -> LLM -> TTS -> Emotion -> LipSync -> AI_RESPONSE"""
+        """完整的音频处理流程：STT -> LLM -> Emotion -> TTS  -> AI_RESPONSE"""
         recognized_text = ""
         ai_response_text = ""
         tts_output = {}
-        lipsync_params = {}
 
         try:
             # 1. STT: 音频转文本
@@ -190,14 +190,21 @@ class ServiceBroker:
             ai_response_text = await llm_service.process(recognized_text, session_id=session_id)
             logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
             
+            # 2.5 提取 emotion，清洗文本
+            extract_result = text_extractor(ai_response_text)
+            emotion = extract_result.get("emotion", EmotionType.CALM)
+            display_text = extract_result.get("cleaned_text", "")
+            tts_text = extract_result.get("cleaned_text", "") 
+            
             # 3. TTS: 文本转语音
             tts_service = self.get_service('tts')
-            tts_output = await tts_service.process(ai_response_text)
+            tts_output = await tts_service.process(tts_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
                 
             # 4. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
-                "text": ai_response_text,
+                "emotion": emotion.value, # 情感类型
+                "text": display_text,
                 "audio": tts_output, # 包含 audio_data, audio_format
                 "recognized_text": recognized_text # 用户通过STT识别的文本
             }
@@ -208,10 +215,9 @@ class ServiceBroker:
             await self._send_error_response(websocket, f"Error in audio processing pipeline: {e}", request_id)
 
     async def _process_text_pipeline(self, websocket: Any, user_text: str, session_id: str, request_id: Optional[str]):
-        """文本输入处理流程：LLM -> TTS -> Emotion -> LipSync -> AI_RESPONSE"""
+        """文本输入处理流程：LLM -> Emotion -> TTS -> AI_RESPONSE"""
         ai_response_text = ""
         tts_output = {}
-        lipsync_params = {}
         try:
             logger.info(f"Processing text input: '{user_text}' (Request ID: {request_id})")
             
@@ -220,16 +226,21 @@ class ServiceBroker:
             ai_response_text = await llm_service.process(user_text, session_id=session_id)
             logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
             
-            # todo: 生成文本清洗 + 重组 ，方便生成高质量的语音
+            # 1.5 提取 emotion，清洗文本
+            extract_result = text_extractor(ai_response_text)
+            emotion = extract_result.get("emotion", EmotionType.NEUTRAL)
+            display_text = extract_result.get("cleaned_text", "")
+            tts_text = extract_result.get("cleaned_text", "")  
             
             # 2. TTS: 文本转语音
             tts_service = self.get_service('tts')
-            tts_output = await tts_service.process(ai_response_text)
+            tts_output = await tts_service.process(tts_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
 
             # 3. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
-                "text": ai_response_text, # AI生成的回复文本
+                "emotion": emotion.value, # 情感类型
+                "text": display_text, # AI生成的回复文本
                 "audio": tts_output,
                 "recognized_text": user_text # 用户直接输入的文本
             }
@@ -252,3 +263,57 @@ class ServiceBroker:
         logger.error(f"Sending error to client (Request ID: {request_id}): {error_message}")
         error_payload = {"message": error_message, "code": "INTERNAL_ERROR"}
         await self._send_to_client(websocket, MessageType.ERROR, error_payload, request_id)
+
+
+class EmotionType(Enum):
+    """
+    情感类型枚举，用于表示情感分析结果。
+    值对应前端或LLM输出的情感描述词。
+    """
+    CALM = "平静"
+    SHY = "害羞"
+    ANGRY = "生气"
+    SAD = "悲伤"
+    SURPRISED = "惊讶"
+    EXCITED = "激动"
+    EMBARRASSED = "尴尬"
+    HAPPY = "高兴"
+
+def text_extractor(ai_text: str) -> Dict[str, Any]:
+    """
+    从AI生成的文本中提取情感和回复文本。
+    期望的格式是: "emotion" | 回复文本
+    例如: "高兴" | 今天天气真好！
+    """
+    cleaned_text = ai_text
+    extracted_emotion = EmotionType.CALM
+
+    try:
+        if "|" in ai_text:
+            parts = ai_text.split("|", 1)
+            emotion_str = parts[0].strip().replace("\"", "") # 移除引号并去除首尾空格
+            text_content = parts[1].strip()
+
+            # 尝试将提取的 emotion_str 映射到 EmotionType
+            found_emotion = False
+            for emotion_member in EmotionType:
+                if emotion_member.value == emotion_str:
+                    extracted_emotion = emotion_member
+                    found_emotion = True
+                    break
+            
+            if found_emotion:
+                cleaned_text = text_content
+            else:
+                # 如果 emotion_str 不在 EmotionType 中，则将整个输入视为文本
+                logger.warning(f"Unknown emotion tag '{emotion_str}' in LLM response. Using full text and default emotion.")
+                cleaned_text = text_content # 或者 cleaned_text = ai_text 如果希望保留无法识别的标签部分
+        else:
+            # 如果没有找到分隔符，则认为整个文本都是回复内容，使用默认情感
+            logger.warning(f"LLM response did not contain '|' separator. Using full text and default emotion. Response: '{ai_text[:100]}...'")
+            
+    except Exception as e:
+        logger.error(f"Error parsing emotion from LLM response: {e}. Response: '{ai_text[:100]}...'", exc_info=True)
+        
+    # TODO tts_text 可以进一步改进，使用特殊token来使得 TTS 更加自然
+    return {"emotion": extracted_emotion, "cleaned_text": cleaned_text, "tts_text": cleaned_text}
