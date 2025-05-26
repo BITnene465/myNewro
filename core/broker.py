@@ -193,8 +193,8 @@ class ServiceBroker:
             # 2.5 提取 emotion，清洗文本
             extract_result = text_extractor(ai_response_text)
             emotion = extract_result.get("emotion", EmotionType.CALM)
-            display_text = extract_result.get("cleaned_text", "")
-            tts_text = extract_result.get("cleaned_text", "") 
+            res_text = extract_result.get("res_text", "")
+            tts_text = extract_result.get("tts_text", "") 
             
             # 3. TTS: 文本转语音
             tts_service = self.get_service('tts')
@@ -204,7 +204,7 @@ class ServiceBroker:
             # 4. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
                 "emotion": emotion.value, # 情感类型
-                "text": display_text,
+                "text": res_text,
                 "audio": tts_output, # 包含 audio_data, audio_format
                 "recognized_text": recognized_text # 用户通过STT识别的文本
             }
@@ -228,9 +228,9 @@ class ServiceBroker:
             
             # 1.5 提取 emotion，清洗文本
             extract_result = text_extractor(ai_response_text)
-            emotion = extract_result.get("emotion", EmotionType.NEUTRAL)
-            display_text = extract_result.get("cleaned_text", "")
-            tts_text = extract_result.get("cleaned_text", "")  
+            emotion = extract_result.get("emotion", EmotionType.CALM)
+            res_text = extract_result.get("res_text", "")
+            tts_text = extract_result.get("tts_text", "")  
             
             # 2. TTS: 文本转语音
             tts_service = self.get_service('tts')
@@ -240,7 +240,7 @@ class ServiceBroker:
             # 3. 组合并发送单一 AI_RESPONSE 消息
             final_payload = {
                 "emotion": emotion.value, # 情感类型
-                "text": display_text, # AI生成的回复文本
+                "text": res_text, # AI生成的回复文本
                 "audio": tts_output,
                 "recognized_text": user_text # 用户直接输入的文本
             }
@@ -285,7 +285,7 @@ def text_extractor(ai_text: str) -> Dict[str, Any]:
     期望的格式是: "emotion" | 回复文本
     例如: "高兴" | 今天天气真好！
     """
-    cleaned_text = ai_text
+    res_text = ai_text
     extracted_emotion = EmotionType.CALM
 
     try:
@@ -303,11 +303,11 @@ def text_extractor(ai_text: str) -> Dict[str, Any]:
                     break
             
             if found_emotion:
-                cleaned_text = text_content
+                res_text = text_content
             else:
                 # 如果 emotion_str 不在 EmotionType 中，则将整个输入视为文本
                 logger.warning(f"Unknown emotion tag '{emotion_str}' in LLM response. Using full text and default emotion.")
-                cleaned_text = text_content # 或者 cleaned_text = ai_text 如果希望保留无法识别的标签部分
+                res_text = text_content # 或者 cleaned_text = ai_text 如果希望保留无法识别的标签部分
         else:
             # 如果没有找到分隔符，则认为整个文本都是回复内容，使用默认情感
             logger.warning(f"LLM response did not contain '|' separator. Using full text and default emotion. Response: '{ai_text[:100]}...'")
@@ -316,4 +316,24 @@ def text_extractor(ai_text: str) -> Dict[str, Any]:
         logger.error(f"Error parsing emotion from LLM response: {e}. Response: '{ai_text[:100]}...'", exc_info=True)
         
     # TODO tts_text 可以进一步改进，使用特殊token来使得 TTS 更加自然
-    return {"emotion": extracted_emotion, "cleaned_text": cleaned_text, "tts_text": cleaned_text}
+    # 为 TTS 生成更干净的文本
+    tts_text_chars = []
+    allowed_punctuation_for_tts = set("，。？！、；：,.?!;: ") 
+
+    for char in res_text:
+        if char.isalnum():  # 保留字母（包括中日韩等语言的字母）和数字
+            tts_text_chars.append(char)
+        elif char in allowed_punctuation_for_tts: # 保留指定的标点符号和空格
+            # 对于空格，确保不会连续添加多个空格
+            if char == ' ':
+                if not tts_text_chars or tts_text_chars[-1] != ' ':
+                    tts_text_chars.append(char)
+            else:
+                tts_text_chars.append(char)
+        elif char.isspace(): # 其他空白字符（如换行符、制表符）转换成单个空格
+            if not tts_text_chars or tts_text_chars[-1] != ' ':
+                tts_text_chars.append(' ')
+        # 其他所有字符（如特殊符号、表情符号等）将被忽略
+    tts_text = "".join(tts_text_chars).strip() 
+    
+    return {"emotion": extracted_emotion, "res_text": res_text, "tts_text": tts_text}
