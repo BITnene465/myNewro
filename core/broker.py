@@ -320,7 +320,26 @@ def text_extractor(ai_text: str) -> Dict[str, Any]:
     tts_text_chars = []
     allowed_punctuation_for_tts = set("，。？！、；：,.?!;: ") 
 
+    # 状态变量，用于跟踪是否在括号内
+    in_parentheses_level = 0 # 使用计数器处理嵌套括号
+    # 定义开闭括号对
+    open_parentheses = "([（"
+    close_parentheses = ")]）"
+    
     for char in res_text:
+        if char in open_parentheses:
+            in_parentheses_level += 1
+            continue  # 不将开括号本身加入TTS文本
+        elif char in close_parentheses:
+            if in_parentheses_level > 0: # 只有在确实有匹配的开括号时才减少计数
+                in_parentheses_level -= 1
+            continue  # 不将闭括号本身加入TTS文本
+        
+        if in_parentheses_level > 0:
+            # 如果在括号内，则跳过当前字符
+            continue
+        
+        # 以下逻辑仅在括号外执行
         if char.isalnum():  # 保留字母（包括中日韩等语言的字母）和数字
             tts_text_chars.append(char)
         elif char in allowed_punctuation_for_tts: # 保留指定的标点符号和空格

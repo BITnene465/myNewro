@@ -1,5 +1,5 @@
 """
-项目配置文件(example)
+项目配置文件（示例）
 """
 import logging
 import torch.cuda
@@ -18,93 +18,116 @@ WEBSOCKET_PORT = 8765
 LOG_LEVEL = logging.INFO
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-#  服务配置
-
-## 语音识别服务配置
-STT_MODEL_TYPE = "whisper"  # 可选值: "whisper", "wav2vec"
-
-if STT_MODEL_TYPE == "whisper":
-    STT_SERVICE_NAME = "WhisperSTT"
-    STT_SERVICE = {
-        "model_size": "medium",  # 可选值: "tiny", "base", "small", "medium", "large"
-        "language": "zh",  # 语言代码，"zh"表示中文
-        "device": "cuda" if torch.cuda.is_available() else "cpu",
-        }
-
-elif STT_MODEL_TYPE == "wav2vec":
-    STT_SERVICE_NAME = "Wav2vecSTT"
-    STT_SERVICE = {
-        "model_name": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
-        "device": "cuda" if torch.cuda.is_available() else "cpu",
-        "local_models_path": Path(__file__).parent.parent / "models"
-        }
-
-## TTS 服务配置
-TTS_MODEL_TYPE = "gpt_sovits"  # 可选值: "gpt_sovits", "fish speech"
-
-if TTS_MODEL_TYPE == "gpt_sovits":
-    TTS_SERVICE_NAME = "GPTsoVITS"
-    TTS_SERVICE ={
-        "api_base_url": "http://localhost:9880",  # 确保GPTsoVITS服务正在运行
-        "speed": 1.0,
-        "audio_format": "wav",
-        "ref_audio_path": "G:\\GPT-SoVITS-DockerTest\\SoVITS_weights\\ref_audio\\dxl1.wav",  # 默认参考音频路径
-        "prompt_text": "你好，这里是我的频道，欢迎大家来和我聊天！",  # 默认提示文本
-        "prompt_language": "zh", 
-        "text_language": "zh",
-        "top_k": 20,
-        "top_p": 0.9,
-        "temperature": 0.9,
-        "text_split_method": "cut0",  # 文本分割方法，详情参考 GPTsoVITS 文档 
-        }
-
-elif TTS_MODEL_TYPE == "fish speech":
-    TTS_SERVICE_NAME = "FishSpeech TTS"
-    TTS_SERVICE = {}
-
-
-# ## 唇形同步服务配置
-# LIPSYNC_SERVICE_NAME = "Lipsync"
-# LIPSYNC_SERVICE = {
-#     "model_path": PROJECT_ROOT / "models" / "xxx.pth"   # 占位符
-# }
-
-## llm 服务配置
+# 系统提示词加载
 SYSTEM_PROMPT = ""
 try:
+    # 确保 system_prompt.txt 文件与 settings.py 在同一 config 目录下，或者调整路径
     with open(PROJECT_ROOT / "config" / "system_prompt.txt", "r", encoding="utf-8") as f:
-        SYSTEM_PROMPT = f.read().strip()  # 读取系统提示词
+        SYSTEM_PROMPT = f.read().strip()
 except FileNotFoundError:
-    print("系统提示词文件未找到，使用默认值。")
+    print("系统提示词文件 'config/system_prompt.txt' 未找到，LLM 将使用默认或无系统提示词。")
 except Exception as e:
     print(f"读取系统提示词时发生错误: {e}")
 
-LLM_MODEL_TYPE = "openai_like"   # 可选值: "openai_like", "local", "ollama"
 
-if LLM_MODEL_TYPE == "openai_like":
-    LLM_SERVICE_NAME = "DeepSeek"  # 根据模型商来自行设置
-    LLM_SERVICE = {
-        "api_base_url": "https://api.deepseek.com/v1",
-        "api_key": "your-api-key", 
-        "model": "deepseek-chat",
-        "temperature": 0.9,
-        "max_tokens": 60,
-        "system_prompt": SYSTEM_PROMPT,
-        "top_p": 0.9,
-        "stream": False
+# 服务配置
+SERVICES = {
+    "stt": {
+        "active_provider": "whisper",  # 可选值: "whisper", "wav2vec"
+        "providers": {
+            "whisper": {
+                "class": "services.stt.WhisperService",  # 类路径
+                "service_name": "WhisperSTT",
+                "config": {
+                    "model_size": "medium",  # 可选值: "tiny", "base", "small", "medium", "large"
+                    "language": "zh",
+                    "device": "cuda" if torch.cuda.is_available() else "cpu",
+                }
+            },
+            "wav2vec": {
+                "class": "services.stt.Wav2vecService", 
+                "service_name": "Wav2vecSTT",
+                "config": {
+                    "model_name": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
+                    "device": "cuda" if torch.cuda.is_available() else "cpu",
+                    "local_models_path": PROJECT_ROOT / "models" # 确保模型在此路径下
+                }
+            }
+        }
+    },
+    "llm": {
+        "active_provider": "openai_like",  # 可选值: "openai_like", "local", "ollama"
+        "providers": {
+            "openai_like": {
+                "class": "services.llm.OpenaiService",
+                "service_name": "DeepSeekLLM",  # 例如 DeepSeek
+                "config": {
+                    "api_base_url": "https://api.deepseek.com/v1",
+                    "api_key": "Your-api-key",  # 替换为你的 DeepSeek API 密钥
+                    "model": "deepseek-chat",
+                    "temperature": 0.8,
+                    "max_tokens": 200,
+                    "system_prompt": SYSTEM_PROMPT,
+                    "top_p": 0.8,
+                    "stream": False
+                }
+            },
+            "local": {
+                "class": "services.llm.LocalModelService", # 假设的类路径
+                "service_name": "LocalLLM",
+                "config": {
+                    "api_base_url": "http://localhost:10721", # NewroLLMServer 或其他本地服务地址
+                    "api_key": "",  # 不需要可以留空
+                    "model": "Qwen3-1.7b", # 确保与本地服务中的模型名一致
+                    "temperature": 0.7,
+                    "max_tokens": 100,
+                    "system_prompt": SYSTEM_PROMPT,
+                    "top_p": 0.9,
+                    "enable_thinking": False, # 特定于你的 LocalModelService 的配置
+                }
+            },
+            "ollama": {
+                "class": "services.llm.OllamaService", # 假设的类路径
+                "service_name": "OllamaLLM",
+                "config": {
+                    # "host": "http://localhost:11434", # Ollama 默认地址
+                    # "model": "llama3", # 在Ollama中已下载的模型
+                    # "system_prompt": SYSTEM_PROMPT,
+                    # "options": {
+                    #     "temperature": 0.8,
+                    #     "top_p": 0.9
+                    # }
+                }
+            }
+        }
+    },
+    "tts": {
+        "active_provider": "gpt_sovits",  # 可选值: "gpt_sovits", "fish_speech"
+        "providers": {
+            "gpt_sovits": {
+                "class": "services.tts.GPTsovitsService", 
+                "service_name": "GPTsoVITS_TTS",
+                "config": {
+                    "api_base_url": "http://localhost:9880",
+                    "speed": 1.0, # 参数名在原配置中是 speed，不是 speed_factor
+                    "audio_format": "wav",
+                    "ref_audio_path": "G:\\GPT-SoVITS-DockerTest\\SoVITS_weights\\ref_audio\\dxl1.wav",
+                    "prompt_text": "你好，这里是我的频道，欢迎大家来和我聊天！",
+                    "prompt_language": "zh",
+                    "text_language": "zh",
+                    "top_k": 20,
+                    "top_p": 0.9,
+                    "temperature": 0.9,
+                    "text_split_method": "cut0",  # 文本切割方式，根据 GPT-SoVITS 的文档按需填写
+                }
+            },
+            "fish_speech": {
+                "class": "services.tts.FishSpeechService", 
+                "service_name": "FishSpeechTTS",
+                "config": {
+                    # 根据 FishSpeech 服务的要求填写配置
+                }
+            }
+        }
     }
-    
-elif LLM_MODEL_TYPE == "local":
-    LLM_SERVICE_NAME = "Llama2" # 根据模型商来自行设置
-    LLM_SERVICE = {
-        "model_path": PROJECT_ROOT / "models" / "llama2-7b-chat.gguf",
-        "system_prompt": SYSTEM_PROMPT,
-        "temperature": 0.7,
-        "max_tokens": 100,
-        "top_p": 0.9,
-        "stream": False
-    }
-    
-elif LLM_MODEL_TYPE == "ollama":
-    LLM_SERVICE_NAME = "Ollama" # 根据模型商来自行设置
-    LLM_SERVICE = {}
+}

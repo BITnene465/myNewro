@@ -6,6 +6,7 @@ import os
 from config import settings
 from core.websocket.server import WebSocketServer
 from core.broker import ServiceBroker
+from services.factory import get_service_instance
 
 # 配置日志
 logging.basicConfig(level=settings.LOG_LEVEL, format=settings.LOG_FORMAT)
@@ -54,8 +55,15 @@ async def main():
     主异步函数，初始化并运行应用程序。
     """
     logger.info("Starting AI Virtual Anchor Backend...")
-    # 1. 初始化服务
-    stt_service, llm_service, tts_service = choose_services()
+    
+    try:
+        # 1. 使用环境变量获取服务实例
+        stt_service = get_service_instance("stt")
+        llm_service = get_service_instance("llm")
+        tts_service = get_service_instance("tts")
+    except (ValueError, ImportError) as e:
+        logger.error(f"初始化服务失败: {e}", exc_info=True)
+        return
 
     # 2. 初始化服务协调器 (Broker)
     broker = ServiceBroker(
