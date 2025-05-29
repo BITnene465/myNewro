@@ -25,13 +25,15 @@ class ServiceBroker:
     def __init__(self,
                  stt_service: BaseService,
                  llm_service: BaseService,
-                 tts_service: BaseService
+                 tts_service: BaseService,
+                 rag_service: Optional[BaseService] = None,
                  ):
         # 使用字典存储所有服务
         self.services = {
             'stt': stt_service,
             'llm': llm_service,
             'tts': tts_service,
+            'rag': rag_service,
         }
         
         self.active_connections: Set[Any] = set() # 存储活跃的WebSocket连接对象
@@ -176,42 +178,16 @@ class ServiceBroker:
     async def _process_audio_pipeline(self, websocket: Any, audio_bytes: bytes, session_id: str, request_id: Optional[str]):
         """完整的音频处理流程：STT -> LLM -> Emotion -> TTS  -> AI_RESPONSE"""
         recognized_text = ""
-        ai_response_text = ""
-        tts_output = {}
-
         try:
-            # 1. STT: 音频转文本
+            # STT: 音频转文本
             stt_service = self.get_service('stt')
             recognized_text = await stt_service.process(audio_bytes)
             logger.info(f"STT result: '{recognized_text}' (Request ID: {request_id})")
-            
-            # 2. LLM: 文本生成回复
-            llm_service = self.get_service('llm')
-            ai_response_text = await llm_service.process(recognized_text, session_id=session_id)
-            logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
-            
-            # 2.5 提取 emotion，清洗文本
-            extract_result = text_extractor(ai_response_text)
-            emotion = extract_result.get("emotion", EmotionType.CALM)
-            res_text = extract_result.get("res_text", "")
-            
-            # 3. TTS: 文本转语音
-            tts_service = self.get_service('tts')
-            tts_output = await tts_service.process(res_text)
-            logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
-                
-            # 4. 组合并发送单一 AI_RESPONSE 消息
-            final_payload = {
-                "emotion": emotion.value, # 情感类型
-                "text": res_text,
-                "audio": tts_output, # 包含 audio_data, audio_format
-                "recognized_text": recognized_text # 用户通过STT识别的文本
-            }
-            await self._send_to_client(websocket, MessageType.AI_RESPONSE, final_payload, request_id)
-
         except Exception as e:
-            logger.error(f"Error in audio processing pipeline (Request ID: {request_id}): {e}", exc_info=True)
-            await self._send_error_response(websocket, f"Error in audio processing pipeline: {e}", request_id)
+            logger.error(f"Error in STT (Request ID: {request_id}): {e}", exc_info=True)
+            await self._send_error_response(websocket, f"Error in STT: {e}", request_id)            
+            
+        self._process_text_pipeline(websocket, recognized_text, session_id, request_id)
 
     async def _process_text_pipeline(self, websocket: Any, user_text: str, session_id: str, request_id: Optional[str]):
         """文本输入处理流程：LLM -> Emotion -> TTS -> AI_RESPONSE"""
@@ -220,9 +196,19 @@ class ServiceBroker:
         try:
             logger.info(f"Processing text input: '{user_text}' (Request ID: {request_id})")
             
+            # 0. RAG: 检索相关知识
+            enhanced_input = user_text
+            if self.has_service('rag'):
+                rag_service = self.get_service('rag')
+                if rag_service.is_ready():
+                    relevant_docs = await rag_service.process(user_text)
+                    if relevant_docs:
+                        rag_context = "\n".join([doc["content"] for doc in relevant_docs])
+                        enhanced_input = f"相关背景知识:\n{rag_context}\n用户输入:\n{user_text}"
+        
             # 1. LLM: 文本生成回复
             llm_service = self.get_service('llm')
-            ai_response_text = await llm_service.process(user_text, session_id=session_id)
+            ai_response_text = await llm_service.process(enhanced_input, session_id=session_id)
             logger.info(f"LLM response: '{ai_response_text}' (Request ID: {request_id})")
             
             # 1.5 提取 emotion，清洗文本
@@ -240,7 +226,7 @@ class ServiceBroker:
                 "emotion": emotion.value, # 情感类型
                 "text": res_text, # AI生成的回复文本
                 "audio": tts_output,
-                "recognized_text": user_text # 用户直接输入的文本
+                # "recognized_text": user_text # 用户直接输入的文本
             }
             await self._send_to_client(websocket, MessageType.AI_RESPONSE, final_payload, request_id)
 

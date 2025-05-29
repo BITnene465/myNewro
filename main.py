@@ -15,40 +15,6 @@ logger = logging.getLogger(__name__)
 # 全局变量，用于优雅关闭
 shutdown_event = asyncio.Event()
 
-def choose_services():
-    """根据settings.py 中的配置选择服务"""
-    if settings.STT_MODEL_TYPE == "whisper":
-        from services.stt import WhisperService
-        stt_service = WhisperService(service_name=settings.STT_SERVICE_NAME, config=settings.STT_SERVICE)
-    elif settings.STT_MODEL_TYPE == "wav2vec":
-        from services.stt import Wav2vecService
-        stt_service = Wav2vecService(service_name=settings.STT_SERVICE_NAME, config=settings.STT_SERVICE)
-    else:
-        raise ValueError(f"Unsupported STT service: {settings.STT_SERVICE}")
-    
-    if settings.TTS_MODEL_TYPE == "gpt_sovits":
-        from services.tts import GPTsovitsService
-        tts_service = GPTsovitsService(service_name=settings.TTS_SERVICE_NAME, config=settings.TTS_SERVICE)
-    elif settings.TTS_MODEL_TYPE == "fish_speech":
-        from services.tts import FishSpeechService
-        tts_service = FishSpeechService(service_name=settings.TTS_SERVICE_NAME, config=settings.TTS_SERVICE)
-    else:
-        raise ValueError(f"Unsupported TTS service: {settings.TTS_SERVICE}")
-    
-    if settings.LLM_MODEL_TYPE == "openai_like":
-        from services.llm import OpenaiService
-        llm_service = OpenaiService(service_name=settings.LLM_SERVICE_NAME, config=settings.LLM_SERVICE)
-    elif settings.LLM_MODEL_TYPE == "local":
-        from services.llm import LocalModelService
-        llm_service = LocalModelService(service_name=settings.LLM_SERVICE_NAME, config=settings.LLM_SERVICE)
-    elif settings.LLM_MODEL_TYPE == "ollama":
-        from services.llm import LlamaService
-        llm_service = LlamaService(service_name=settings.LLM_SERVICE_NAME, config=settings.LLM_SERVICE)
-    else:
-        raise ValueError(f"Unsupported LLM service: {settings.LLM_MODEL_TYPE}")
-    
-    return stt_service, llm_service, tts_service
-    
 
 async def main():
     """
@@ -61,6 +27,9 @@ async def main():
         stt_service = get_service_instance("stt")
         llm_service = get_service_instance("llm")
         tts_service = get_service_instance("tts")
+        
+        # 如果需要RAG服务，可以取消注释以下行
+        rag_service = get_service_instance("rag")
     except (ValueError, ImportError) as e:
         logger.error(f"初始化服务失败: {e}", exc_info=True)
         return
@@ -69,7 +38,8 @@ async def main():
     broker = ServiceBroker(
         stt_service=stt_service,
         llm_service=llm_service,
-        tts_service=tts_service
+        tts_service=tts_service,
+        rag_service=rag_service  # 如果需要RAG服务，可以取消注释此行
     )
     
     try:
