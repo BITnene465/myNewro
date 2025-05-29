@@ -194,11 +194,10 @@ class ServiceBroker:
             extract_result = text_extractor(ai_response_text)
             emotion = extract_result.get("emotion", EmotionType.CALM)
             res_text = extract_result.get("res_text", "")
-            tts_text = extract_result.get("tts_text", "") 
             
             # 3. TTS: 文本转语音
             tts_service = self.get_service('tts')
-            tts_output = await tts_service.process(tts_text)
+            tts_output = await tts_service.process(res_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
                 
             # 4. 组合并发送单一 AI_RESPONSE 消息
@@ -229,12 +228,11 @@ class ServiceBroker:
             # 1.5 提取 emotion，清洗文本
             extract_result = text_extractor(ai_response_text)
             emotion = extract_result.get("emotion", EmotionType.CALM)
-            res_text = extract_result.get("res_text", "")
-            tts_text = extract_result.get("tts_text", "")  
+            res_text = extract_result.get("res_text", "") 
             
             # 2. TTS: 文本转语音
             tts_service = self.get_service('tts')
-            tts_output = await tts_service.process(tts_text)
+            tts_output = await tts_service.process(res_text)
             logger.info(f"TTS result generated. Format: {tts_output.get('audio_format')} (Request ID: {request_id})")
 
             # 3. 组合并发送单一 AI_RESPONSE 消息
@@ -315,44 +313,5 @@ def text_extractor(ai_text: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error parsing emotion from LLM response: {e}. Response: '{ai_text[:100]}...'", exc_info=True)
         
-    # TODO tts_text 可以进一步改进，使用特殊token来使得 TTS 更加自然
-    # 为 TTS 生成更干净的文本
-    tts_text_chars = []
-    allowed_punctuation_for_tts = set("，。？！、；：,.?!;: ") 
+    return {"emotion": extracted_emotion, "res_text": res_text}
 
-    # 状态变量，用于跟踪是否在括号内
-    in_parentheses_level = 0 # 使用计数器处理嵌套括号
-    # 定义开闭括号对
-    open_parentheses = "([（"
-    close_parentheses = ")]）"
-    
-    for char in res_text:
-        if char in open_parentheses:
-            in_parentheses_level += 1
-            continue  # 不将开括号本身加入TTS文本
-        elif char in close_parentheses:
-            if in_parentheses_level > 0: # 只有在确实有匹配的开括号时才减少计数
-                in_parentheses_level -= 1
-            continue  # 不将闭括号本身加入TTS文本
-        
-        if in_parentheses_level > 0:
-            # 如果在括号内，则跳过当前字符
-            continue
-        
-        # 以下逻辑仅在括号外执行
-        if char.isalnum():  # 保留字母（包括中日韩等语言的字母）和数字
-            tts_text_chars.append(char)
-        elif char in allowed_punctuation_for_tts: # 保留指定的标点符号和空格
-            # 对于空格，确保不会连续添加多个空格
-            if char == ' ':
-                if not tts_text_chars or tts_text_chars[-1] != ' ':
-                    tts_text_chars.append(char)
-            else:
-                tts_text_chars.append(char)
-        elif char.isspace(): # 其他空白字符（如换行符、制表符）转换成单个空格
-            if not tts_text_chars or tts_text_chars[-1] != ' ':
-                tts_text_chars.append(' ')
-        # 其他所有字符（如特殊符号、表情符号等）将被忽略
-    tts_text = "".join(tts_text_chars).strip() 
-    
-    return {"emotion": extracted_emotion, "res_text": res_text, "tts_text": tts_text}

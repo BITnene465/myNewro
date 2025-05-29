@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, Union, List, Optional
 
 from ..base import BaseService
+from .utils import get_clean_tts_text
 
 class GPTsovitsService(BaseService):
     """
@@ -154,6 +155,7 @@ class GPTsovitsService(BaseService):
             self.logger.error("GPTsoVITS TTS service not initialized")
             raise RuntimeError("GPTsoVITS TTS service not initialized")
         
+        text = get_clean_tts_text(text)  # 清理文本，去除不必要的字符
         self.logger.info(f"Processing text for speech synthesis: '{text[:50]}...'")
         
         try:

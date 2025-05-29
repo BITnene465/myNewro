@@ -78,7 +78,7 @@ SERVICES = {
                 "config": {
                     "api_base_url": "http://localhost:10721", # NewroLLMServer 或其他本地服务地址
                     "api_key": "",  # 不需要可以留空
-                    "model": "Qwen3-1.7b", # 确保与本地服务中的模型名一致
+                    "model_name": "Qwen3-1.7B", # 确保与本地服务中的模型名一致
                     "temperature": 0.7,
                     "max_tokens": 100,
                     "system_prompt": SYSTEM_PROMPT,

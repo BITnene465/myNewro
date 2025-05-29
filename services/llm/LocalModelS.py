@@ -14,7 +14,7 @@ class LocalModelService(BaseService):
         config_default = {
                 "api_key": "",   # 目前暂时没有加入身份验证
                 "api_base_url": "http://localhost:10721",
-                "model_name": "Qwen3-1.7b",  
+                "model_name": "Qwen3-1.7B",  
                 "temperature": 0.8,
                 "max_tokens": 2000,
                 "top_p": 0.9,
@@ -192,7 +192,7 @@ class NewroLLMClient:
             str: AI生成的文本
         """
         url = f"{self.api_base_url}/chat/completions"
-        # todo 之后考虑加入身份验证
+        # TODO 之后考虑加入身份验证
         data = {
             "model": model,
             "messages": messages,
