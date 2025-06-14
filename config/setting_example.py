@@ -1,5 +1,5 @@
 """
-项目配置文件（示例）
+项目配置文件
 """
 import logging
 import torch.cuda
@@ -63,7 +63,7 @@ SERVICES = {
                 "service_name": "DeepSeekLLM",  # 例如 DeepSeek
                 "config": {
                     "api_base_url": "https://api.deepseek.com/v1",
-                    "api_key": "Your-api-key",  # 替换为你的 DeepSeek API 密钥
+                    "api_key": "your-api-key", # 替换为你的 DeepSeek 密钥
                     "model": "deepseek-chat",
                     "temperature": 0.8,
                     "max_tokens": 200,
@@ -73,21 +73,21 @@ SERVICES = {
                 }
             },
             "local": {
-                "class": "services.llm.LocalModelService", # 假设的类路径
+                "class": "services.llm.LocalModelService", # 类路径
                 "service_name": "LocalLLM",
                 "config": {
                     "api_base_url": "http://localhost:10721", # NewroLLMServer 或其他本地服务地址
                     "api_key": "",  # 不需要可以留空
-                    "model_name": "Qwen3-1.7B", # 确保与本地服务中的模型名一致
-                    "temperature": 0.7,
-                    "max_tokens": 100,
+                    "model_name": "Qwen3-1.7B-xin-lora", # 确保与本地服务中的模型名一致
+                    "temperature": 0.9,
+                    "max_tokens": 200,
                     "system_prompt": SYSTEM_PROMPT,
-                    "top_p": 0.9,
+                    "top_p": 0.8,
                     "enable_thinking": False, # 特定于你的 LocalModelService 的配置
                 }
             },
             "ollama": {
-                "class": "services.llm.OllamaService", # 假设的类路径
+                "class": "services.llm.OllamaService", # 类路径
                 "service_name": "OllamaLLM",
                 "config": {
                     # "host": "http://localhost:11434", # Ollama 默认地址
@@ -109,10 +109,10 @@ SERVICES = {
                 "service_name": "GPTsoVITS_TTS",
                 "config": {
                     "api_base_url": "http://localhost:9880",
-                    "speed": 1.0, # 参数名在原配置中是 speed，不是 speed_factor
+                    "speed": 1.0, 
                     "audio_format": "wav",
-                    "ref_audio_path": "G:\\GPT-SoVITS-DockerTest\\SoVITS_weights\\ref_audio\\dxl1.wav",
-                    "prompt_text": "你好，这里是我的频道，欢迎大家来和我聊天！",
+                    "ref_audio_path": "G:\\codeSpace\\NewroProject\\asset\\ref_audios\\ref1.wav",
+                    "prompt_text": "就是客人的重要度划分，分为胡、桃、竹、木四级，往往级别越高，往来就越密切",
                     "prompt_language": "zh",
                     "text_language": "zh",
                     "top_k": 20,
@@ -128,6 +128,25 @@ SERVICES = {
                     # 根据 FishSpeech 服务的要求填写配置
                 }
             }
+        }
+    },
+    "rag": {
+        "active_provider": "simple_rag",  # 可选值: "simple_rag"
+        "providers": {
+            "simple_rag": {
+                "class": "services.rag.SimpleRAGService",  # 类路径
+                "service_name": "SimpleRAG",
+                "config": {
+                    "knowledge_base_path": PROJECT_ROOT / "data" / "knowledge_test.txt",  # 知识库文件路径
+                    "chroma_db_path": PROJECT_ROOT / "data" / "chroma_db",  # Chroma向量数据库路径
+                    "collection_name": "knowledge_test",   # 向量数据库集合名称
+                    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",  # 嵌入模型
+                    "chunk_size": 300,  # 文本分块大小
+                    "chunk_overlap": 50,  # 分块重叠大小
+                    "top_k": 3,  # 检索返回的相关文档数量
+                    "similarity_threshold": 0.6  # 相似度阈值，低于此值的文档不会被返回
+                }
+            },
         }
     }
 }
