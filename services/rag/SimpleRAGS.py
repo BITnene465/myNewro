@@ -42,7 +42,7 @@ class SimpleRAGService(BaseService):
 
     def _get_default_knowledge(self) -> str:
         """获取默认知识内容"""
-        return "欢迎使用AI虚拟主播！擅长角色扮演、闲聊。"
+        return ""
 
     def _init_components(self):
         """初始化组件"""
@@ -125,7 +125,7 @@ class SimpleRAGService(BaseService):
         return results
 
     async def add_knowledge(self, content: str):
-        """添加新知识"""
+        """添加新知识, 目前不可用"""
         if not self.is_ready():
             return
         

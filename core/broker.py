@@ -187,7 +187,7 @@ class ServiceBroker:
             logger.error(f"Error in STT (Request ID: {request_id}): {e}", exc_info=True)
             await self._send_error_response(websocket, f"Error in STT: {e}", request_id)            
             
-        self._process_text_pipeline(websocket, recognized_text, session_id, request_id)
+        await self._process_text_pipeline(websocket, recognized_text, session_id, request_id)
 
     async def _process_text_pipeline(self, websocket: Any, user_text: str, session_id: str, request_id: Optional[str]):
         """文本输入处理流程：LLM -> Emotion -> TTS -> AI_RESPONSE"""
@@ -200,7 +200,7 @@ class ServiceBroker:
             enhanced_input = user_text
             if self.has_service('rag'):
                 rag_service = self.get_service('rag')
-                if rag_service.is_ready():
+                if rag_service is not None and rag_service.is_ready():
                     relevant_docs = await rag_service.process(user_text)
                     if relevant_docs:
                         rag_context = "\n".join([doc["content"] for doc in relevant_docs])

@@ -29,7 +29,7 @@ async def main():
         tts_service = get_service_instance("tts")
         
         # 如果需要RAG服务，可以取消注释以下行
-        rag_service = get_service_instance("rag")
+        # rag_service = get_service_instance("rag")
     except (ValueError, ImportError) as e:
         logger.error(f"初始化服务失败: {e}", exc_info=True)
         return
@@ -39,7 +39,7 @@ async def main():
         stt_service=stt_service,
         llm_service=llm_service,
         tts_service=tts_service,
-        rag_service=rag_service  # 如果需要RAG服务，可以取消注释此行
+        # rag_service=rag_service  # 如果需要RAG服务，可以取消注释此行
     )
     
     try:

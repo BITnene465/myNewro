@@ -3,3 +3,4 @@ tests/test_data/*
 tests/test_output/*
 __pycache__
 config/settings.py
+data/
